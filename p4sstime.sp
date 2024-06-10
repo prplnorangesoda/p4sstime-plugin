@@ -6,8 +6,7 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION "2.2.1"
-#define DEBUG		true
+#define VERSION "2.3.0"
 
 enum struct enubPlyJackSettings
 {
@@ -52,6 +51,9 @@ int									ibBallSpawnedLower;
 int									iRoundResetTick;
 int									iWinStratDistance;
 int									eiDeathBomber;
+int									iBallPickedUpTick;
+int									iRedBallTime;
+int									iBluBallTime;
 // int  			trikzProjCollideCurVal;
 // int  			trikzProjCollideSave = 2;
 Menu								mPassMenu;
@@ -214,6 +216,8 @@ Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 0; i < MaxClients + 1; i++)
 		ClearLocalStats(i);
+	iRedBallTime = 0;
+	iBluBallTime = 0;
 	if (GetConVarInt(bPracticeMode) == 1)
 	{
 		SetConVarInt(bPracticeMode, 0);
@@ -448,7 +452,24 @@ void Hook_OnSpawnBall(const char[] name, int caller, int activator, float delay)
 
 Action Event_PassFree(Event event, const char[] name, bool dontBroadcast)
 {
-	int owner													= event.GetInt("owner");
+	int owner = event.GetInt("owner");
+	if (TF2_GetClientTeam(owner) == TFTeam_Blue)
+	{
+		if (iBallPickedUpTick != 0)
+		{
+			iBluBallTime += GetGameTickCount() - iBallPickedUpTick;
+		}
+	}
+	else if (TF2_GetClientTeam(owner) == TFTeam_Red)
+	{
+		if (iBallPickedUpTick != 0)
+		{
+			iRedBallTime += GetGameTickCount() - iBallPickedUpTick;
+		}
+	}
+	else
+	{
+	}
 
 	arrbDeathbombCheck[eiDeathBomber] = false;	// if anyone at all throws the ball, the deathbomb is automatically false
 
@@ -490,6 +511,10 @@ Action Event_PassBallBlocked(Event event, const char[] name, bool dontBroadcast)
 // When a player gets a neutral ball.
 Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 {
+	iBallPickedUpTick = GetGameTickCount();
+#if defined(DEBUG)
+	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+#endif
 	iPlyWhoGotJack = event.GetInt("owner");
 	float position[3];
 
@@ -516,7 +541,7 @@ Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 				SDKHooks_TakeDamage(iPlyWhoGotJack, iPlyWhoGotJack, iPlyWhoGotJack, 500.0);
 				char winstratterName[MAX_NAME_LENGTH];
 				GetClientName(iPlyWhoGotJack, winstratterName, sizeof(winstratterName));
-				PrintToChatAll("\x0700ffff[PASS] \x0700ffff%s\x073BC43B tried to \x078aed8awin strat.", winstratterName);
+				PrintToAllClientsChat("\x0700ffff[PASS] \x0700ffff%s\x073BC43B tried to \x078aed8awin strat.", winstratterName);
 			}
 		}
 	}
@@ -554,6 +579,11 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	int		ibHandoffCheck = false;
 	iPlyWhoGotJack			 = catcher;
 
+	iBallPickedUpTick		 = GetGameTickCount();
+#if defined(DEBUG)
+	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+#endif
+
 	char throwerName[MAX_NAME_LENGTH], catcherName[MAX_NAME_LENGTH];
 	GetClientName(thrower, throwerName, sizeof(throwerName));
 	GetClientName(catcher, catcherName, sizeof(catcherName));
@@ -566,11 +596,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 		{
 			if (InEnemyGoalieZone(catcher))
 			{
-				for (int x = 1; x < MaxClients + 1; x++)
-				{
-					if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s from scoring!", catcherName, throwerName);
-				}
+				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s from scoring!", catcherName, throwerName);
 			}
 		}
 	}
@@ -641,10 +667,15 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 // When a player melee steals the ball from another player.
 Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 {
-	int	 thief			= event.GetInt("attacker");
-	int	 victim			= event.GetInt("victim");
-	bool steal2save = false;
-	iPlyWhoGotJack	= thief;
+	int	 thief				= event.GetInt("attacker");
+	int	 victim				= event.GetInt("victim");
+	bool steal2save		= false;
+	iPlyWhoGotJack		= thief;
+
+	iBallPickedUpTick = GetGameTickCount();
+#if defined(DEBUG)
+	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+#endif
 	if (InGoalieZone(thief))
 	{
 		arriPlyRoundPassStats[thief].iPlySteal2Saves++;
@@ -704,6 +735,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 	int	 points		 = event.GetInt("points");
 	int	 assistant = event.GetInt("assister");
 	char playerName[MAX_NAME_LENGTH], assistantName[MAX_NAME_LENGTH];
+
 	GetClientName(scorer, playerName, sizeof(playerName));
 
 	if (ibBallSpawnedLower)
@@ -757,35 +789,39 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 
 	if (bPrintStats.BoolValue)
 	{
+		// 7 is the length of a color format
+		char playerNameTeamFormatted[MAX_NAME_LENGTH + 7], assistantNameTeamFormatted[MAX_NAME_LENGTH + 7];
+		FormatPlayerNameWithTeam(scorer, playerNameTeamFormatted);
 		if (arrbPanaceaCheck[scorer] && TF2_GetPlayerClass(scorer) != TFClass_Medic)
 		{
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x074df74dPanacea!", playerName);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x074df74dPanacea!", playerNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a Panacea. Tick: %d", playerName, STVTickCount());
 		}
 		else if (arrbWinStratCheck[scorer])
 		{
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x078aed8awin strat!", playerName);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x078aed8awin strat!", playerNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a win strat. Tick: %d", playerName, STVTickCount());
 		}
 		else if (arrbDeathbombCheck[eiDeathBomber])
 		{
 			GetClientName(eiDeathBomber, playerName, sizeof(playerName));
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x0797e043deathbomb!", playerName);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x0797e043deathbomb!", playerNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a deathbomb. Tick: %d", playerName, STVTickCount());
 		}
 		else if (dist > 1600)
 		{
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal from a distance of %.0fhu!", playerName, dist);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal from a distance of %.0fhu!", playerNameTeamFormatted, dist);
 			PrintToSTV("[PASS-TV] %s scored a goal from distance of %.0fhu. Tick: %d", playerName, dist, STVTickCount());
 		}
 		else if (assistant > 0)
 		{
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal \x0700ffffassisted by %s!", playerName, assistantName);
+			FormatPlayerNameWithTeam(assistant, assistantNameTeamFormatted);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal \x0700ffffassisted by %s!", playerNameTeamFormatted, assistantNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a goal assisted by %s. Tick: %d", playerName, assistantName, STVTickCount());
 		}
 		else
 		{
-			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal!", playerName);
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a goal!", playerNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a goal. Tick: %d", playerName, STVTickCount());
 		}
 	}
@@ -856,16 +892,29 @@ void Hook_OnCatapult(const char[] output, int caller, int activator, float delay
 	}
 }
 
+// outputString must be of size MAX_NAME_LENGTH + 7 or greater.
+void FormatPlayerNameWithTeam(int player, char[] outputString)
+{
+	char playerName[MAX_NAME_LENGTH];
+	GetClientName(player, playerName, sizeof(playerName));
+	if (TF2_GetClientTeam(player) == TFTeam_Blue)
+	{
+		Format(outputString, MAX_NAME_LENGTH + 7, "\x074EA6C1%s", playerName);
+	}
+	else {
+		Format(outputString, MAX_NAME_LENGTH + 7, "\x07C43F3B%s", playerName);
+	}
+}
+
 // Prints the following message to all valid clients, EXCLUDING STV!
 void PrintToAllClientsChat(const char[] format, any...)
 {
 	// this should be a sane max string size value?
 	char stringBuffer[1024];
 	VFormat(stringBuffer, 1024, format, 2);
-	if (DEBUG)
-	{
-		LogToGame("Printing this message to all clients: %s", stringBuffer);
-	}
+#if defined(DEBUG)
+	LogToGame("Printing this message to all clients: %s", stringBuffer);
+#endif
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
