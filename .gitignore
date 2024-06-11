@@ -1,0 +1,5 @@
+*
+!.gitignore
+!p4sstime/
+!p4sstime/*
+!p4sstime.sp
