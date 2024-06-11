@@ -87,7 +87,7 @@ Action Timer_DisplayStats(Handle timer)
 	// calculate possession time
 	int totalPossessionTime = iBluBallTime + iRedBallTime;
 
-#if defined(DEBUG)
+#if defined(VERBOSE)
 	LogToGame("BluBallTime: %d, RedBallTime: %d, totalPossessionTime = %d", iBluBallTime, iRedBallTime, totalPossessionTime);
 #endif
 	float bluBallPossessionPercent;
