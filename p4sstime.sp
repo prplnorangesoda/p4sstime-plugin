@@ -7,6 +7,7 @@
 #pragma newdecls required
 
 #define VERSION "2.3.0"
+#define VERBOSE
 
 enum struct enubPlyJackSettings
 {
@@ -166,6 +167,9 @@ public void OnPluginStart()
 
 	char sMapNameBuffer[256];
 	GetCurrentMap(sMapNameBuffer, 256);
+#if defined(VERBOSE)
+	LogMessage("Current map buffer -> %s", sMapNameBuffer);
+#endif
 	// check if stadium is the current map in order to set the height lower
 	// see OnMapInit
 	// this is necessary as OnMapInit is not called when the plugin is ran
@@ -512,7 +516,7 @@ Action Event_PassBallBlocked(Event event, const char[] name, bool dontBroadcast)
 Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 {
 	iBallPickedUpTick = GetGameTickCount();
-#if defined(DEBUG)
+#if defined(VERBOSE)
 	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
 #endif
 	iPlyWhoGotJack = event.GetInt("owner");
@@ -580,7 +584,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack			 = catcher;
 
 	iBallPickedUpTick		 = GetGameTickCount();
-#if defined(DEBUG)
+#if defined(VERBOSE)
 	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
 #endif
 
@@ -673,7 +677,7 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack		= thief;
 
 	iBallPickedUpTick = GetGameTickCount();
-#if defined(DEBUG)
+#if defined(VERBOSE)
 	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
 #endif
 	if (InGoalieZone(thief))
@@ -863,13 +867,13 @@ bool InEnemyGoalieZone(int client)
 	if (team == view_as<int>(TFTeam_Blue))
 	{
 		float distance = GetVectorDistance(position, fRedGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < 150) return true;
 	}
 
 	if (team == view_as<int>(TFTeam_Red))
 	{
 		float distance = GetVectorDistance(position, fBluGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < 150) return true;
 	}
 	return false;
 }
@@ -912,7 +916,7 @@ void PrintToAllClientsChat(const char[] format, any...)
 	// this should be a sane max string size value?
 	char stringBuffer[1024];
 	VFormat(stringBuffer, 1024, format, 2);
-#if defined(DEBUG)
+#if defined(VERBOSE)
 	LogToGame("Printing this message to all clients: %s", stringBuffer);
 #endif
 	for (int x = 1; x < MaxClients + 1; x++)
