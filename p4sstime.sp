@@ -18,7 +18,7 @@ enum struct enubPlyJackSettings
 	// If true: simplify end-of-round chat summaries.
 	bool bPlySimpleChatPrintSetting;
 	// If true: do *not* print end-of-round summaries in chat.
-	bool bPlyToggleChatPrintSetting;
+	bool bPlyDontPrintChatSetting;
 }
 
 enum struct enuiPlyRoundStats

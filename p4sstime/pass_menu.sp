@@ -6,7 +6,7 @@ bool GetCookieBool(int client, Cookie cookie)
 
 	if (!value[0])
 		return false;
-	
+
 	// if it's not empty, it's true unless explicitly "0"
 	return !StrEqual(value, "0");
 }
@@ -17,19 +17,19 @@ void SetCookieBool(int client, Cookie cookie, bool state)
 	{
 		char value[11];
 		FormatEx(value, sizeof(value), "%d", state);
-		cookie.Set(client, value);		
+		cookie.Set(client, value);
 	}
 }
 
 public OnClientCookiesCached(int client)
 {
-	arrbJackAcqSettings[client].bPlyCoundownCaptionSetting  = GetCookieBool(client, cookieCountdownCaption);
-	arrbJackAcqSettings[client].bPlyHudTextSetting 			= GetCookieBool(client, cookieJACKPickupHud);
-	arrbJackAcqSettings[client].bPlyChatPrintSetting 		= GetCookieBool(client, cookieJACKPickupChat);
-	arrbJackAcqSettings[client].bPlySoundSetting 			= GetCookieBool(client, cookieJACKPickupSound);
-	arrbJackAcqSettings[client].bPlySimpleChatPrintSetting 	= GetCookieBool(client, cookieSimpleChatPrint);
-	arrbJackAcqSettings[client].bPlyToggleChatPrintSetting 	= GetCookieBool(client, cookieToggleChatPrint);
-}  
+	arrbJackAcqSettings[client].bPlyCoundownCaptionSetting = GetCookieBool(client, cookieCountdownCaption);
+	arrbJackAcqSettings[client].bPlyHudTextSetting				 = GetCookieBool(client, cookieJACKPickupHud);
+	arrbJackAcqSettings[client].bPlyChatPrintSetting			 = GetCookieBool(client, cookieJACKPickupChat);
+	arrbJackAcqSettings[client].bPlySoundSetting					 = GetCookieBool(client, cookieJACKPickupSound);
+	arrbJackAcqSettings[client].bPlySimpleChatPrintSetting = GetCookieBool(client, cookieSimpleChatPrint);
+	arrbJackAcqSettings[client].bPlyDontPrintChatSetting	 = GetCookieBool(client, cookieToggleChatPrint);
+}
 
 Action Command_PassMenu(int client, int args)
 {
@@ -55,7 +55,7 @@ void ShowPassMenu(int client)
 	mPassMenu.AddItem("jackpickupsound", buffer);
 	FormatEx(buffer, sizeof(buffer), "%s: %s", "Simple chat round summary", arrbJackAcqSettings[client].bPlySimpleChatPrintSetting ? "ON" : "OFF");
 	mPassMenu.AddItem("simpleprint", buffer);
-	FormatEx(buffer, sizeof(buffer), "%s: %s", "Toggle chat round summary", arrbJackAcqSettings[client].bPlyToggleChatPrintSetting ? "OFF" : "ON");
+	FormatEx(buffer, sizeof(buffer), "%s: %s", "Toggle chat round summary", arrbJackAcqSettings[client].bPlyDontPrintChatSetting ? "OFF" : "ON");
 	mPassMenu.AddItem("toggleprint", buffer);
 
 	mPassMenu.Display(client, MENU_TIME_FOREVER);
@@ -91,18 +91,18 @@ int PassMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			SetCookieBool(param1, cookieJACKPickupSound, arrbJackAcqSettings[param1].bPlySoundSetting);
 			ShowPassMenu(param1);
 		}
-		else if(StrEqual(info, "simpleprint"))
+		else if (StrEqual(info, "simpleprint"))
 		{
 			arrbJackAcqSettings[param1].bPlySimpleChatPrintSetting = !arrbJackAcqSettings[param1].bPlySimpleChatPrintSetting;
 			SetCookieBool(param1, cookieSimpleChatPrint, arrbJackAcqSettings[param1].bPlySimpleChatPrintSetting);
 			ShowPassMenu(param1);
 		}
-		else if(StrEqual(info, "toggleprint"))
+		else if (StrEqual(info, "toggleprint"))
 		{
-			arrbJackAcqSettings[param1].bPlyToggleChatPrintSetting = !arrbJackAcqSettings[param1].bPlyToggleChatPrintSetting;
-			SetCookieBool(param1, cookieToggleChatPrint, arrbJackAcqSettings[param1].bPlyToggleChatPrintSetting);
+			arrbJackAcqSettings[param1].bPlyDontPrintChatSetting = !arrbJackAcqSettings[param1].bPlyDontPrintChatSetting;
+			SetCookieBool(param1, cookieToggleChatPrint, arrbJackAcqSettings[param1].bPlyDontPrintChatSetting);
 			ShowPassMenu(param1);
 		}
 	}
-	return 0; // just do this to get rid of warning
+	return 0;	 // just do this to get rid of warning
 }

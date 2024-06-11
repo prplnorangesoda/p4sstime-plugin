@@ -46,13 +46,13 @@ Action Command_PasstimeToggleChatPrint(int client, int args)
 	if (GetCmdArgIntEx(1, value))
 	{
 		if (value == 1)
-			arrbJackAcqSettings[client].bPlyToggleChatPrintSetting = true;
+			arrbJackAcqSettings[client].bPlyDontPrintChatSetting = true;
 		else if (value == 0)
-			arrbJackAcqSettings[client].bPlyToggleChatPrintSetting = false;
+			arrbJackAcqSettings[client].bPlyDontPrintChatSetting = false;
 		if (value == 1 || value == 0)
 		{
-			SetCookieBool(client, cookieToggleChatPrint, arrbJackAcqSettings[client].bPlyToggleChatPrintSetting);
-			ReplyToCommand(client, "[PASS] Toggle round chat summary: %s", arrbJackAcqSettings[client].bPlyToggleChatPrintSetting ? "OFF" : "ON");
+			SetCookieBool(client, cookieToggleChatPrint, arrbJackAcqSettings[client].bPlyDontPrintChatSetting);
+			ReplyToCommand(client, "[PASS] Toggle round chat summary: %s", arrbJackAcqSettings[client].bPlyDontPrintChatSetting ? "OFF" : "ON");
 		}
 	}
 	else
@@ -216,18 +216,11 @@ static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu
 		{
 			char playerName[MAX_NAME_LENGTH];
 			GetClientName(teamMembers[i], playerName, sizeof(playerName));
-			// if client requests simplified print:
-			if (arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyToggleChatPrintSetting)
+			// if client requests print
+			if (!arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
 			{
 				char stats[MAX_MESSAGE_LENGTH];
-				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], true);
-				PrintToChat(client, "\x0700ffff[PASS]\x074EA6C1 %s:%s", playerName, stats);
-			}
-			// if client requests regular print:
-			else if (!arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyToggleChatPrintSetting)
-			{
-				char stats[MAX_MESSAGE_LENGTH];
-				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i]);
+				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], arrbJackAcqSettings[client].bPlySimpleChatPrintSetting);
 				PrintToChat(client, "\x0700ffff[PASS]\x074EA6C1 %s:%s", playerName, stats);
 			}
 			PrintToConsole(client, "//                                                                    //\n//   BLU | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d steal2saves              //\n//                                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves);	// have this be red so your team shows up first?
@@ -240,13 +233,13 @@ static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu
 		{
 			char playerName[MAX_NAME_LENGTH];
 			GetClientName(teamMembers[i], playerName, sizeof(playerName));
-			if (arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyToggleChatPrintSetting)
+			if (arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
 			{
 				char stats[MAX_MESSAGE_LENGTH];
 				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], true);
 				PrintToChat(client, "\x0700ffff[PASS]\x07C43F3B %s:%s", playerName, stats);
 			}
-			else if (!arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyToggleChatPrintSetting)
+			else if (!arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
 			{
 				char stats[MAX_MESSAGE_LENGTH];
 				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i]);
