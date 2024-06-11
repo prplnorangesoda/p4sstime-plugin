@@ -6,7 +6,7 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION "2.3.0"
+#define VERSION "2.3.1"
 #define VERBOSE
 
 enum struct enubPlyJackSettings
