@@ -9,6 +9,12 @@
 #define VERSION "2.3.1"
 #define VERBOSE
 
+enum
+{
+	COLOR_FORMAT_LENGTH				 = 7,
+	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH
+}
+
 enum struct enubPlyJackSettings
 {
 	bool bPlyCoundownCaptionSetting;
@@ -593,6 +599,9 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	char throwerName[MAX_NAME_LENGTH], catcherName[MAX_NAME_LENGTH];
 	GetClientName(thrower, throwerName, sizeof(throwerName));
 	GetClientName(catcher, catcherName, sizeof(catcherName));
+	char throwerNameTeamFormat[MAX_TEAMFORMAT_NAME_LENGTH], catcherNameTeamFormat[MAX_TEAMFORMAT_NAME_LENGTH];
+	FormatPlayerNameWithTeam(thrower, throwerNameTeamFormat);
+	FormatPlayerNameWithTeam(catcher, catcherNameTeamFormat);
 
 	if (TF2_GetClientTeam(thrower) == TFTeam_Spectator || TF2_GetClientTeam(catcher) == TFTeam_Spectator) return Plugin_Handled;
 
@@ -602,7 +611,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 		{
 			if (InEnemyGoalieZone(catcher))
 			{
-				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s from scoring!", catcherName, throwerName);
+				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 			}
 		}
 	}
@@ -619,7 +628,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 				for (int x = 1; x < MaxClients + 1; x++)
 				{
 					if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked \x0700ffff%s from scoring!", catcherName, throwerName);
+					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked \x0700ffff%s from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 				}
 			}
 			PrintToSTV("[PASS-TV] %s blocked %s from scoring. Tick: %d", catcherName, throwerName, STVTickCount());
@@ -632,7 +641,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 				for (int x = 1; x < MaxClients + 1; x++)
 				{
 					if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-					PrintToChat(x, "\x0700ffff[PASS] %s \x07ff00ffintercepted \x0700ffff%s!", catcherName, throwerName);
+					PrintToChat(x, "\x0700ffff[PASS] %s \x07ff00ffintercepted \x0700ffff%s!", catcherNameTeamFormat, throwerNameTeamFormat);
 				}
 			}
 			PrintToSTV("[PASS-TV] %s intercepted %s. Tick: %d", catcherName, throwerName, STVTickCount());
@@ -646,7 +655,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 			for (int x = 1; x < MaxClients + 1; x++)
 			{
 				if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-				PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00handed off \x0700ffffto %s!", throwerName, catcherName);
+				PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00handed off \x0700ffffto %s!", throwerNameTeamFormat, catcherNameTeamFormat);
 			}
 		}
 		PrintToSTV("[PASS-TV] %s handed off to %s. Tick: %d", throwerName, catcherName, STVTickCount());
@@ -711,22 +720,19 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 		char thiefName[MAX_NAME_LENGTH], victimName[MAX_NAME_LENGTH];
 		GetClientName(thief, thiefName, sizeof(thiefName));
 		GetClientName(victim, victimName, sizeof(victimName));
+		char thiefNameTeamFormat[MAX_TEAMFORMAT_NAME_LENGTH];
+		char victimNameTeamFormat[MAX_TEAMFORMAT_NAME_LENGTH];
+		FormatPlayerNameWithTeam(thief, thiefNameTeamFormat);
+		FormatPlayerNameWithTeam(victim, victimNameTeamFormat);
+
 		if (InGoalieZone(thief))
 		{
-			for (int x = 1; x < MaxClients + 1; x++)
-			{
-				if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-				PrintToChat(x, "\x0700ffff[PASS] %s\x07ff8000 defensively stole from\x0700ffff %s!", thiefName, victimName);
-			}
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x07ff8000 defensively stole from\x0700ffff %s!", thiefNameTeamFormat, victimNameTeamFormat);
 			PrintToSTV("[PASS-TV] %s defensively stole from %s. Tick: %d", thiefName, victimName, STVTickCount());
 		}
 		else
 		{
-			for (int x = 1; x < MaxClients + 1; x++)
-			{
-				if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-				PrintToChat(x, "\x0700ffff[PASS] %s\x07ff8000 stole from\x0700ffff %s!", thiefName, victimName);
-			}
+			PrintToAllClientsChat("\x0700ffff[PASS] %s\x07ff8000 stole from\x0700ffff %s!", thiefNameTeamFormat, victimNameTeamFormat);
 			PrintToSTV("[PASS-TV] %s stole from %s. Tick: %d", thiefName, victimName, STVTickCount());
 		}
 	}
@@ -796,7 +802,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 	if (bPrintStats.BoolValue)
 	{
 		// 7 is the length of a color format
-		char playerNameTeamFormatted[MAX_NAME_LENGTH + 7], assistantNameTeamFormatted[MAX_NAME_LENGTH + 7];
+		char playerNameTeamFormatted[MAX_NAME_LENGTH + COLOR_FORMAT_LENGTH], assistantNameTeamFormatted[MAX_NAME_LENGTH + 7];
 		FormatPlayerNameWithTeam(scorer, playerNameTeamFormatted);
 		if (arrbPanaceaCheck[scorer] && TF2_GetPlayerClass(scorer) != TFClass_Medic)
 		{
@@ -810,7 +816,11 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 		}
 		else if (arrbDeathbombCheck[eiDeathBomber])
 		{
-			GetClientName(eiDeathBomber, playerName, sizeof(playerName));
+			// if we take too long to print, a race condition happens
+			// prevent that race condition
+			int deathBomber = eiDeathBomber;
+			GetClientName(deathBomber, playerName, sizeof(playerName));
+			FormatPlayerNameWithTeam(deathBomber, playerNameTeamFormatted);
 			PrintToAllClientsChat("\x0700ffff[PASS] %s\x073BC43B scored a \x0797e043deathbomb!", playerNameTeamFormatted);
 			PrintToSTV("[PASS-TV] %s scored a deathbomb. Tick: %d", playerName, STVTickCount());
 		}
@@ -869,13 +879,13 @@ bool InEnemyGoalieZone(int client)
 	if (team == view_as<int>(TFTeam_Blue))
 	{
 		float distance = GetVectorDistance(position, fRedGoalPos, false);
-		if (distance < 150) return true;
+		if (distance < 100) return true;
 	}
 
 	if (team == view_as<int>(TFTeam_Red))
 	{
 		float distance = GetVectorDistance(position, fBluGoalPos, false);
-		if (distance < 150) return true;
+		if (distance < 100) return true;
 	}
 	return false;
 }
