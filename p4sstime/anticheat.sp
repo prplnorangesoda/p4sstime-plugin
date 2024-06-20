@@ -10,7 +10,7 @@ void TurnBindCheck(int client)
 	}
 	if(GetClientButtons(client) & IN_RIGHT)
 	{
-		LogToGame("\"%N<%i><%s><%s>\" used \"+left\" as Demoman (position \"%.0f %.0f %.0f\")",
+		LogToGame("\"%N<%i><%s><%s>\" used \"+right\" as Demoman (position \"%.0f %.0f %.0f\")",
 		user1, GetClientUserId(user1), user1steamid, user1team,
 		user1position[0], user1position[1], user1position[2]);
 	}
