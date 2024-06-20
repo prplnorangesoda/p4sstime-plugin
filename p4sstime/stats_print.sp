@@ -125,6 +125,10 @@ Action Timer_DisplayStats(Handle timer)
 	else
 		redBallPossessionPercent = (float(iRedBallTime) / float(totalPossessionTime)) * 100;
 
+	if ((redBallPossessionPercent + bluBallPossessionPercent) >= 99.99 && (redBallPossessionPercent + bluBallPossessionPercent) < 100)
+	{
+		redBallPossessionPercent += 0.01;
+	}
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x)) continue;
