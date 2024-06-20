@@ -7,7 +7,6 @@
 #pragma newdecls required
 
 #define VERSION "2.3.1"
-#define VERBOSE
 
 enum
 {
@@ -49,7 +48,16 @@ enuiPlyRoundStats		arriPlyRoundPassStats[MAXPLAYERS + 1];
 
 float								fBluGoalPos[3], fRedGoalPos[3], fTopSpawnPos[3], fFreeBallPos[3];
 
-ConVar							bEquipStockWeapons, bSwitchDuringRespawn, bStealBlurryOverlay, bDroppedItemsCollision, bPrintStats, bWinstratKills, bFunStats, /*trikzEnable, trikzProjCollide, trikzProjDev*/ bPracticeMode;
+ConVar							bEquipStockWeapons;
+ConVar							bSwitchDuringRespawn;
+ConVar							bStealBlurryOverlay;
+// ConVar							trikzEnable, trikzProjCollide, trikzProjDev;
+ConVar							bDroppedItemsCollision;
+ConVar							bPrintStats;
+ConVar							bWinstratKills;
+ConVar							bFunStats;
+ConVar							bPracticeMode;
+ConVar							bVerboseLogs;
 
 int									iPlyWhoGotJack;
 // int			plyDirecter;
@@ -153,7 +161,7 @@ public void OnPluginStart()
 	bFunStats							 = CreateConVar("sm_pt_print_events_fun", "0", "If sm_pt_print_events is 1, print additional fun stats, like stealing a goal from a teammate.", FCVAR_NOTIFY);
 	bPracticeMode					 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	bWinstratKills				 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
-
+	bVerboseLogs					 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
 	// trikzEnable	 = CreateConVar("sm_pt_trikz", "0", "Set 'trikz' mode. 1 adds friendly knockback for airshots, 2 adds friendly knockback for splash damage, 3 adds friendly knockback for everywhere", FCVAR_NOTIFY, true, 0.0, true, 3.0);
 	// trikzProjCollide = CreateConVar("sm_pt_trikz_projcollide", "2", "Manually set team projectile collision behavior when trikz is on. 2 always collides, 1 will cause your projectiles to phase through if you are too close (default game behavior), 0 will cause them to never collide.", 0, true, 0.0, true, 2.0);
 	// trikzProjDev = CreateConVar("sm_pt_trikz_projcollide_dev", "0", "DONOTUSE; This command is used solely by the plugin to change values. Changing this manually may cause issues.", FCVAR_HIDDEN, true, 0.0, true, 2.0);
@@ -177,9 +185,10 @@ public void OnPluginStart()
 
 	char sMapNameBuffer[256];
 	GetCurrentMap(sMapNameBuffer, 256);
-#if defined(VERBOSE)
-	LogMessage("Current map buffer -> %s", sMapNameBuffer);
-#endif
+	if (bVerboseLogs.BoolValue)
+	{
+		LogMessage("Current map buffer -> %s", sMapNameBuffer);
+	}
 	// check if stadium is the current map in order to set the height lower
 	// see OnMapInit
 	// this is necessary as OnMapInit is not called when the plugin is ran
@@ -532,9 +541,10 @@ Action Event_PassBallBlocked(Event event, const char[] name, bool dontBroadcast)
 Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 {
 	iBallPickedUpTick = GetGameTickCount();
-#if defined(VERBOSE)
-	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-#endif
+	if (bVerboseLogs.BoolValue)
+	{
+		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+	}
 	iPlyWhoGotJack = event.GetInt("owner");
 	float position[3];
 
@@ -600,9 +610,10 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack			 = catcher;
 
 	iBallPickedUpTick		 = GetGameTickCount();
-#if defined(VERBOSE)
-	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-#endif
+	if (bVerboseLogs.BoolValue)
+	{
+		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+	}
 
 	char throwerName[MAX_NAME_LENGTH], catcherName[MAX_NAME_LENGTH];
 	GetClientName(thrower, throwerName, sizeof(throwerName));
@@ -696,9 +707,10 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack		= thief;
 
 	iBallPickedUpTick = GetGameTickCount();
-#if defined(VERBOSE)
-	LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-#endif
+	if (bVerboseLogs.BoolValue)
+	{
+		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
+	}
 	if (InGoalieZone(thief))
 	{
 		arriPlyRoundPassStats[thief].iPlySteal2Saves++;
@@ -936,9 +948,10 @@ void PrintToAllClientsChat(const char[] format, any...)
 	// this should be a sane max string size value?
 	char stringBuffer[1024];
 	VFormat(stringBuffer, 1024, format, 2);
-#if defined(VERBOSE)
-	LogToGame("Printing this message to all clients: %s", stringBuffer);
-#endif
+	if (bVerboseLogs.BoolValue)
+	{
+		LogToGame("Printing this message to all clients: %s", stringBuffer);
+	}
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
