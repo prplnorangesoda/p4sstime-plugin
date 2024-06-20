@@ -66,6 +66,7 @@ int									iBluBallTime;
 // int  			trikzProjCollideCurVal;
 // int  			trikzProjCollideSave = 2;
 Menu								mPassMenu;
+bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
 bool								arrbBlastJumpStatus[MAXPLAYERS + 1];	// true if blast jumping, false if has landed
@@ -121,6 +122,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_pt_jackpickup_sound", Command_PasstimeJackPickupSound);
 	RegConsoleCmd("sm_pt_simplechatprint", Command_PasstimeSimpleChatPrint);
 	RegConsoleCmd("sm_pt_togglechatprint", Command_PasstimeToggleChatPrint);
+	RegAdminCmd("sm_ptspawnball", Command_PasstimeSpawnBall, ADMFLAG_CONFIG, "Spawn the ball forcefully, by game starting and tournament restarting.");
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("post_inventory_application", Event_PlayerResup);
@@ -198,6 +200,7 @@ public void OnPluginStart()
 #include "p4sstime/convars.sp"
 #include "p4sstime/stats_print.sp"
 #include "p4sstime/f2stocks.sp"
+#include "p4sstime/spawnball.sp"
 
 public void OnMapInit(const char[] mapName)
 {
@@ -436,6 +439,11 @@ void Hook_OnSpawnBall(const char[] name, int caller, int activator, float delay)
 	eiJack						 = FindEntityByClassname(-1, "passtime_ball");
 	ibBallSpawnedLower = 0;
 	if (bDroppedItemsCollision.BoolValue) SetEntityCollisionGroup(eiJack, 4);
+	if (bWaitingForBallSpawnToRestart)
+	{
+		ServerCommand("mp_tournament_restart");
+		bWaitingForBallSpawnToRestart = false;
+	}
 	GetEntPropString(caller, Prop_Data, "m_iName", spawnName, sizeof(spawnName));
 	if (StrEqual(spawnName, "passtime_ball_spawn1"))
 	{
