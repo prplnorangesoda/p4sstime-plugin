@@ -630,7 +630,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 		{
 			if (InEnemyGoalieZone(catcher))
 			{
-				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
+				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 			}
 		}
 	}
@@ -647,7 +647,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 				for (int x = 1; x < MaxClients + 1; x++)
 				{
 					if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked \x0700ffff%s from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
+					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked \x0700ffff%s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 				}
 			}
 			PrintToSTV("[PASS-TV] %s blocked %s from scoring. Tick: %d", catcherName, throwerName, STVTickCount());
