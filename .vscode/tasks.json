@@ -4,7 +4,9 @@
 		{
 			"label": "Compile plugins (linux)",
 			"type": "shell",
-			"command": "./compile.sh",
+			"linux": {
+				"command": "./scripting/compile.sh"
+			},
 			"group": {
 				"kind": "build",
 				"isDefault": true
