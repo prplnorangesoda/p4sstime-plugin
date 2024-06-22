@@ -2,6 +2,7 @@
 !.gitignore
 !.vscode/
 !.vscode/*
+!scripting/compile.sh
 !scripting
 !scripting/p4sstime/
 !scripting/p4sstime/*
