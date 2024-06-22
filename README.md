@@ -35,3 +35,13 @@ _Note: the process from here divulges from Windows and Linux development. I pers
 
 2. The compile shell script in `scripting/compile.sh` will compile all .sp files listed in `scripting/` to `plugins/`. With SourceMod, there should come an executable named `spcomp`, which will compile the plugin for you.
    - _Note: If you open this repository using VSCode, there is a "compile all plugins" task that will run this script for you._
+
+#### Windows
+
+I don't have any guidance here for how to compile on Windows yet, sorry. It's compiled like a normal SourceMod plugin with includes.
+
+---
+
+From there on you should be set to modify the .sp files, compile the plugin, and run your SourceMod server. To hot-reload the plugin with new changes, run `sm plugins reload p4sstime` serverside (or `rcon sm plugins reload p4sstime` through rcon), and see your changes!
+
+Note: this plugin has a _really_ strict `.gitignore`. If you add a new file outside of the `scripting/p4sstime/` folder, chances are it may not be picked up. Remember to include your new file in the `.gitignore`.
