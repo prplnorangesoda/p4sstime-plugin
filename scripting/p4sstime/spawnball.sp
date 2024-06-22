@@ -10,4 +10,5 @@ Action Command_PasstimeSpawnBall(int client, int args)
 	PrintToAllClientsChat("\x0700ffff[PASS] \x07ffff00THE GAME IS \x07ff0000NOT \x07ffff00STARTING!");
 	bWaitingForBallSpawnToRestart = true;
 	ServerCommand("mp_restartgame_immediate 1");
+	return Plugin_Handled;
 }

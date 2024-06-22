@@ -34,7 +34,28 @@ _Note: the process from here divulges from Windows and Linux development. I pers
 #### Linux
 
 2. The compile shell script in `scripting/compile.sh` will compile all .sp files listed in `scripting/` to `plugins/`. With SourceMod, there should come an executable named `spcomp`, which will compile the plugin for you.
+
    - _Note: If you open this repository using VSCode, there is a "compile all plugins" task that will run this script for you._
+   - Here's expected output:
+
+   ````
+    $ ./scripting/compile.sh
+
+   	Compiling p4sstime.sp ...
+   	SourcePawn Compiler 1.11.0.6964
+   	Copyright (c) 1997-2006 ITB CompuPhase
+   	Copyright (c) 2004-2021 AlliedModders LLC
+
+   	p4sstime/spawnball.sp(1) : warning 242: function "Command_PasstimeSpawnBall" should return an explicit value
+   	Code size: 57796 bytes
+   	Data size: 21468 bytes
+   	Stack/heap size: 18516 bytes
+   	Total requirements: 97780 bytes
+
+   	1 Warning.
+   	```
+   	I've fixed the warning above, but it's left in as an example.
+   ````
 
 #### Windows
 
