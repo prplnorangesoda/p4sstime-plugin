@@ -958,3 +958,13 @@ void PrintToAllClientsChat(const char[] format, any...)
 		PrintToChat(x, stringBuffer);
 	}
 }
+
+// 0: TEAM_UNASSIGNED
+// 1: spectator
+// 2: TF_TEAM_RED
+// 3: TF_TEAM_BLU
+stock int GetBallTeam()
+{
+	if (eiJack == 0 || !IsValidEntity(eiJack)) return 0;
+	return GetEntProp(eiJack, Prop_Send, "m_iTeamNum");
+}
