@@ -1,18 +1,27 @@
+// you were working on splash defenses
+// check netprops.txt and datamaps.txt
 #include <tf2_stocks>
 #include <sdkhooks>
-//#include <dhooks>
+#include <dhooks>
 #include <clientprefs>
 
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION "2.4.0"
+#define VERSION "2.5.0-pre1"
 
 enum
 {
 	COLOR_FORMAT_LENGTH				 = 7,
 	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH
 }
+
+// enum BallState
+// {
+// 	STATE_OUT_OF_PLAY,
+// 	STATE_FREE,
+// 	STATE_CARRIED
+// };
 
 enum struct enubPlyJackSettings
 {
@@ -76,6 +85,9 @@ int									iBluBallTime;
 Menu								mPassMenu;
 bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
+bool								bBallLoose;
+bool								bWatchBall;
+TFTeam							eLastBallTeam;
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
 bool								arrbBlastJumpStatus[MAXPLAYERS + 1];	// true if blast jumping, false if has landed
 bool								arrbPanaceaCheck[MAXPLAYERS + 1];
@@ -236,12 +248,43 @@ public void OnMapStart()	 // getgoallocations
 	}
 }
 
+public void OnGameFrame()
+{
+	if (bWatchBall && bBallLoose)
+	{
+		TFTeam ballTeam = GetBallTeam();
+		if (ballTeam != eLastBallTeam)
+		{
+			LogMessage("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
+			float ballPos[3];
+			GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
+			float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
+			float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
+			LogMessage("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
+			if (bPrintStats.BoolValue)
+			{
+				if (distFromBluGoal <= 120)
+				{
+					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
+				}
+				else if (distFromRedGoal <= 120)
+				{
+					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+				}
+			}
+		}
+		eLastBallTeam = ballTeam;
+	}
+}
+
 Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 0; i < MaxClients + 1; i++)
 		ClearLocalStats(i);
 	iRedBallTime = 0;
 	iBluBallTime = 0;
+	bBallLoose	 = false;
+	bWatchBall	 = false;
 	if (GetConVarInt(bPracticeMode) == 1)
 	{
 		SetConVarInt(bPracticeMode, 0);
@@ -446,6 +489,8 @@ void Hook_OnSpawnBall(const char[] name, int caller, int activator, float delay)
 {
 	char spawnName[24];
 	eiJack						 = FindEntityByClassname(-1, "passtime_ball");
+
+	bBallLoose				 = true;
 	ibBallSpawnedLower = 0;
 	if (bDroppedItemsCollision.BoolValue) SetEntityCollisionGroup(eiJack, 4);
 	if (bWaitingForBallSpawnToRestart)
@@ -481,23 +526,28 @@ void Hook_OnSpawnBall(const char[] name, int caller, int activator, float delay)
 
 Action Event_PassFree(Event event, const char[] name, bool dontBroadcast)
 {
-	int owner = event.GetInt("owner");
-	if (TF2_GetClientTeam(owner) == TFTeam_Blue)
+	bBallLoose			 = true;
+	int		 owner		 = event.GetInt("owner");
+	TFTeam ownerTeam = TF2_GetClientTeam(owner);
+	if (ownerTeam == TFTeam_Blue)
 	{
 		if (iBallPickedUpTick != 0)
 		{
 			iBluBallTime += GetGameTickCount() - iBallPickedUpTick;
 		}
 	}
-	else if (TF2_GetClientTeam(owner) == TFTeam_Red)
+	else if (ownerTeam == TFTeam_Red)
 	{
 		if (iBallPickedUpTick != 0)
 		{
 			iRedBallTime += GetGameTickCount() - iBallPickedUpTick;
 		}
 	}
-	else
+
+	if (!arrbPlyIsDead[owner])
 	{
+		bWatchBall		= true;
+		eLastBallTeam = ownerTeam;
 	}
 
 	arrbDeathbombCheck[eiDeathBomber] = false;	// if anyone at all throws the ball, the deathbomb is automatically false
@@ -540,6 +590,8 @@ Action Event_PassBallBlocked(Event event, const char[] name, bool dontBroadcast)
 // When a player gets a neutral ball.
 Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 {
+	bBallLoose				= false;
+	bWatchBall				= false;
 	iBallPickedUpTick = GetGameTickCount();
 	if (bVerboseLogs.BoolValue)
 	{
@@ -608,6 +660,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	int		bSave					 = false;
 	int		ibHandoffCheck = false;
 	iPlyWhoGotJack			 = catcher;
+	bBallLoose					 = false;
 
 	iBallPickedUpTick		 = GetGameTickCount();
 	if (bVerboseLogs.BoolValue)
@@ -630,7 +683,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 		{
 			if (InEnemyGoalieZone(catcher))
 			{
-				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* \x0700ffff%s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
+				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* %s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 			}
 		}
 	}
@@ -647,7 +700,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 				for (int x = 1; x < MaxClients + 1; x++)
 				{
 					if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
-					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked \x0700ffff%s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
+					PrintToChat(x, "\x0700ffff[PASS] %s \x07ffff00blocked %s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 				}
 			}
 			PrintToSTV("[PASS-TV] %s blocked %s from scoring. Tick: %d", catcherName, throwerName, STVTickCount());
@@ -767,6 +820,8 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 	int	 points		 = event.GetInt("points");
 	int	 assistant = event.GetInt("assister");
 	char playerName[MAX_NAME_LENGTH], assistantName[MAX_NAME_LENGTH];
+	bBallLoose = false;
+	bWatchBall = false;
 
 	GetClientName(scorer, playerName, sizeof(playerName));
 
@@ -963,8 +1018,21 @@ void PrintToAllClientsChat(const char[] format, any...)
 // 1: spectator
 // 2: TF_TEAM_RED
 // 3: TF_TEAM_BLU
-stock int GetBallTeam()
+stock TFTeam GetBallTeam()
 {
-	if (eiJack == 0 || !IsValidEntity(eiJack)) return 0;
-	return GetEntProp(eiJack, Prop_Send, "m_iTeamNum");
+	if (eiJack == 0 || !IsValidEntity(eiJack)) return TFTeam_Unassigned;
+	int team = GetEntProp(eiJack, Prop_Send, "m_iTeamNum");
+	switch (team)
+	{
+		case 0:
+			return TFTeam_Unassigned;
+		case 1:
+			return TFTeam_Spectator;
+		case 2:
+			return TFTeam_Red;
+		case 3:
+			return TFTeam_Blue;
+		default:
+			return TFTeam_Unassigned;
+	}
 }

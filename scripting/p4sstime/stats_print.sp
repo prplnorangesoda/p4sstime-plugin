@@ -118,17 +118,27 @@ Action Timer_DisplayStats(Handle timer)
 	if (iBluBallTime == 0)
 		bluBallPossessionPercent = 0.0;
 	else
-		bluBallPossessionPercent = (float(iBluBallTime) / float(totalPossessionTime)) * 100;
+		bluBallPossessionPercent = (float(iBluBallTime) / float(totalPossessionTime));
 
 	if (iRedBallTime == 0)
 		redBallPossessionPercent = 0.0;
 	else
-		redBallPossessionPercent = (float(iRedBallTime) / float(totalPossessionTime)) * 100;
+		redBallPossessionPercent = (float(iRedBallTime) / float(totalPossessionTime));
 
-	if ((redBallPossessionPercent + bluBallPossessionPercent) >= 99.99 && (redBallPossessionPercent + bluBallPossessionPercent) < 100)
+	// example values:
+	// red% = 54.53% (0.5453) 5453
+	// blu% = 45.47% (0.4547) 4547
+	int redTest = RoundToFloor(redBallPossessionPercent * 10000);
+	int bluTest = RoundToFloor(bluBallPossessionPercent * 10000);
+	// clean it up for spectators so the value adds up to a clean 100%
+	if (redTest + bluTest != 10000)
 	{
-		redBallPossessionPercent += 0.01;
+		redBallPossessionPercent += 0.0001
 	}
+
+	// for display
+	redBallPossessionPercent *= 100;
+	bluBallPossessionPercent *= 100;
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x)) continue;
