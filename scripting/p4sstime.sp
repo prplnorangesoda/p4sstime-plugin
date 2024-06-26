@@ -1,5 +1,3 @@
-// you were working on splash defenses
-// check netprops.txt and datamaps.txt
 #include <tf2_stocks>
 #include <sdkhooks>
 #include <dhooks>
@@ -8,7 +6,14 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION "2.5.0-pre1"
+#define VERSION					"2.5.0-pre1"
+
+#define GOALSCOLOR			"\x073BC43B"
+#define ASSISTSCOLOR		"\x073bc48f"
+#define SAVESCOLOR			"\x07ffff00"
+#define INTERCEPTSCOLOR "\x07ff00ff"
+#define STEALSCOLOR			"\x07ff8000"
+#define SPLASHESCOLOR		"\x075bd4b3"
 
 enum
 {
@@ -91,7 +96,7 @@ bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
 bool								bBallLoose;
 bool								bWatchBall;
-TFTeam							eLastBallTeam;
+TFTeam							eLastTickBallTeam;
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
 bool								arrbBlastJumpStatus[MAXPLAYERS + 1];	// true if blast jumping, false if has landed
 bool								arrbPanaceaCheck[MAXPLAYERS + 1];
@@ -258,9 +263,9 @@ public void OnGameFrame()
 		if (bWatchBall && bBallLoose)
 		{
 			TFTeam ballTeam = GetBallTeam();
-			if (ballTeam != eLastBallTeam)
+			if (ballTeam != eLastTickBallTeam)
 			{
-				VerboseLog("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
+				VerboseLog("Ball team changed from %d to %d", eLastTickBallTeam, ballTeam);
 				float ballPos[3];
 				GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
 				float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
@@ -278,23 +283,28 @@ public void OnGameFrame()
 					}
 				}
 			}
-			eLastBallTeam = ballTeam;
+			eLastTickBallTeam = ballTeam;
 		}
 	}
 }
 
 public void OnEntityCreated(int eIndex, const char[] eClassname)
 {
-	if (StrEqual(eClassname, "tf_projectile_rocket"))
+	// wrap it around instead of using verboselog to avoid
+	// an unnecessary string cmp
+	if (bVerboseLogs.BoolValue)
 	{
-		LogMessage("tf_projectile_rocket spawned, index: %d", eIndex);
+		if (StrEqual(eClassname, "tf_projectile_rocket"))
+		{
+			LogMessage("tf_projectile_rocket spawned, index: %d", eIndex);
+		}
 	}
-	else if (StrEqual(eClassname, "passtime_ball"))
+	if (StrEqual(eClassname, "passtime_ball"))
 	{
 		LogMessage("passtime_ball spawned, index: %d", eIndex);
 		if (!SDKHookEx(eIndex, SDKHook_OnTakeDamagePost, PasstimeBallTookDamage))
 		{
-			LogError("Could not hook passtime_ball");
+			LogError("Could not hook passtime_ball. Splash detection will not work.");
 		}
 	}
 	if (bMedicArrowsNeutralizeBall.BoolValue)
@@ -323,7 +333,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 			{
 				case TFTeam_Blue:
 				{
-					if (EntInBluGoalZone(eiJack))
+					if (EntInBluGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Red)
 					{
 						char playerName[MAX_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
@@ -333,7 +343,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 				}
 				case TFTeam_Red:
 				{
-					if (EntInRedGoalZone(eiJack))
+					if (EntInRedGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Blue)
 					{
 						char playerName[MAX_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
@@ -629,8 +639,8 @@ Action Event_PassFree(Event event, const char[] name, bool dontBroadcast)
 
 	if (!arrbPlyIsDead[owner])
 	{
-		bWatchBall		= true;
-		eLastBallTeam = ownerTeam;
+		bWatchBall				= true;
+		eLastTickBallTeam = ownerTeam;
 	}
 
 	arrbDeathbombCheck[eiDeathBomber] = false;	// if anyone at all throws the ball, the deathbomb is automatically false
