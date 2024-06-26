@@ -13,12 +13,14 @@ static const char sAssistsLongFormat[]			= "\x073bc48f assists %d";
 static const char sSavesLongFormat[]				= "\x07ffff00 saves %d";
 static const char sInterceptsLongFormat[]		= "\x07ff00ff intercepts %d";
 static const char sStealsLongFormat[]				= "\x07ff8000 steals %d";
+static const char sSplashesLongFormat[]			= "\x075bd4b3 splashes %d";
 
 static const char sGoalsSimpleFormat[]			= "\x073BC43B GLS %d";
 static const char sAssistsSimpleFormat[]		= "\x073bc48f AST %d";
 static const char sSavesSimpleFormat[]			= "\x07ffff00 SAV %d";
 static const char sInterceptsSimpleFormat[] = "\x07ff00ff INT %d";
 static const char sStealsSimpleFormat[]			= "\x07ff8000 STL %d";
+static const char sSplashesSimpleFormat[]		= "\x075bd4b3 SPL %d";
 
 Action						Command_PasstimeSimpleChatPrint(int client, int args)
 {
@@ -89,6 +91,7 @@ void ClearLocalStats(int client)
 	arriPlyRoundPassStats[client].iPlyScores			= 0;
 	arriPlyRoundPassStats[client].iPlyAssists			= 0;
 	arriPlyRoundPassStats[client].iPlySaves				= 0;
+	arriPlyRoundPassStats[client].iPlySplashSaves = 0;
 	arriPlyRoundPassStats[client].iPlyIntercepts	= 0;
 	arriPlyRoundPassStats[client].iPlySteals			= 0;
 	arriPlyRoundPassStats[client].iPlyPanaceas		= 0;
@@ -193,14 +196,13 @@ Action Timer_DisplayStats(Handle timer)
  */
 static void AssembleColoredStatsString(char[] buf, int maxLength, int client, bool simplified = false)
 {
-#if defined(VERBOSE)
-	LogMessage("Assembling stats for client: %d", client);
-#endif
+	VerboseLog("Assembling stats for client: %d", client);
 	char sGoals[48];
 	char sAssists[48];
 	char sSaves[48];
 	char sIntercepts[48];
 	char sSteals[48];
+	char sSplashes[48];
 	if (simplified)
 	{
 		Format(sGoals, sizeof(sGoals), sGoalsSimpleFormat, arriPlyRoundPassStats[client].iPlyScores);
@@ -208,6 +210,7 @@ static void AssembleColoredStatsString(char[] buf, int maxLength, int client, bo
 		Format(sSaves, sizeof(sSaves), sSavesSimpleFormat, arriPlyRoundPassStats[client].iPlySaves);
 		Format(sIntercepts, sizeof(sIntercepts), sInterceptsSimpleFormat, arriPlyRoundPassStats[client].iPlyIntercepts);
 		Format(sSteals, sizeof(sSteals), sStealsSimpleFormat, arriPlyRoundPassStats[client].iPlySteals);
+		Format(sSplashes, sizeof(sSplashes), sSplashesSimpleFormat, arriPlyRoundPassStats[client].iPlySplashSaves);
 	}
 	else
 	{
@@ -216,9 +219,10 @@ static void AssembleColoredStatsString(char[] buf, int maxLength, int client, bo
 		Format(sSaves, sizeof(sSaves), sSavesLongFormat, arriPlyRoundPassStats[client].iPlySaves);
 		Format(sIntercepts, sizeof(sIntercepts), sInterceptsLongFormat, arriPlyRoundPassStats[client].iPlyIntercepts);
 		Format(sSteals, sizeof(sSteals), sStealsLongFormat, arriPlyRoundPassStats[client].iPlySteals);
+		Format(sSplashes, sizeof(sSplashes), sSplashesLongFormat, arriPlyRoundPassStats[client].iPlySplashSaves);
 	}
 
-	Format(buf, maxLength, "%s,%s,%s,%s,%s", sGoals, sAssists, sSaves, sIntercepts, sSteals);
+	Format(buf, maxLength, "%s,%s,%s,%s,%s,%s", sGoals, sAssists, sSaves, sIntercepts, sSteals, sSplashes);
 }
 
 static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu)
@@ -237,7 +241,7 @@ static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu
 				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], arrbJackAcqSettings[client].bPlySimpleChatPrintSetting);
 				PrintToChat(client, "\x0700ffff[PASS]\x074EA6C1 %s:%s", playerName, stats);
 			}
-			PrintToConsole(client, "//                                                                    //\n//   BLU | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d steal2saves              //\n//                                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves);	// have this be red so your team shows up first?
+			PrintToConsole(client, "//                                                                    //\n//   BLU | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d defensive steals         //\n//   %d splashsaves                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves, arriPlyRoundPassStats[teamMembers[i]].iPlySplashSaves);	// have this be red so your team shows up first?
 		}
 	}
 	// format names to red
@@ -259,7 +263,7 @@ static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu
 				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i]);
 				PrintToChat(client, "\x0700ffff[PASS]\x07C43F3B %s:%s", playerName, stats);
 			}
-			PrintToConsole(client, "//                                                                    //\n//   RED | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d steal2saves              //\n//                                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves);
+			PrintToConsole(client, "//                                                                    //\n//   RED | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d defensive steals         //\n//   %d splashsaves                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves, arriPlyRoundPassStats[teamMembers[i]].iPlySplashSaves);
 		}
 	}
 }

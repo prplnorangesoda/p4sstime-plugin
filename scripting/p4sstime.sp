@@ -1,19 +1,26 @@
-// you were working on splash defenses
-// check netprops.txt and datamaps.txt
 #include <tf2_stocks>
 #include <sdkhooks>
-#include <dhooks>
+//#include <dhooks>
 #include <clientprefs>
 
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION "2.5.0-pre1"
+#define VERSION					"2.5.0-prerelease-SPLASHDETECT"
+
+#define GOALSCOLOR			"\x073BC43B"
+#define ASSISTSCOLOR		"\x073bc48f"
+#define SAVESCOLOR			"\x07ffff00"
+#define INTERCEPTSCOLOR "\x07ff00ff"
+#define STEALSCOLOR			"\x07ff8000"
+#define SPLASHESCOLOR		"\x075bd4b3"
 
 enum
 {
 	COLOR_FORMAT_LENGTH				 = 7,
-	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH
+	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH,
+	MAX_ENTITIES							 = 4096,
+	GOALIE_DISTANCE						 = 200
 }
 
 // enum BallState
@@ -42,6 +49,7 @@ enum struct enuiPlyRoundStats
 	int iPlySaves;
 	int iPlyIntercepts;
 	int iPlySteals;
+	int iPlySplashSaves;
 	int iPlyPanaceas;
 	int iPlyWinStrats;
 	int iPlyDeathbombs;
@@ -67,6 +75,7 @@ ConVar							bWinstratKills;
 ConVar							bFunStats;
 ConVar							bPracticeMode;
 ConVar							bVerboseLogs;
+ConVar							bMedicArrowsNeutralizeBall;
 
 int									iPlyWhoGotJack;
 // int			plyDirecter;
@@ -87,7 +96,7 @@ bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
 bool								bBallLoose;
 bool								bWatchBall;
-TFTeam							eLastBallTeam;
+TFTeam							eLastTickBallTeam;
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
 bool								arrbBlastJumpStatus[MAXPLAYERS + 1];	// true if blast jumping, false if has landed
 bool								arrbPanaceaCheck[MAXPLAYERS + 1];
@@ -165,15 +174,16 @@ public void OnPluginStart()
 	HookEntityOutput("info_passtime_ball_spawn", "OnSpawnBall", Hook_OnSpawnBall);
 	AddCommandListener(OnChangeClass, "joinclass");
 
-	bEquipStockWeapons		 = CreateConVar("sm_pt_stock_blocklist", "0", "If 1, disable ability to equip shotgun, stickies, and needles; this is needed as allowlists can't normally block stock weapons.", FCVAR_NOTIFY);
-	bSwitchDuringRespawn	 = CreateConVar("sm_pt_block_instant_respawn", "0", "If 1, disable class switch ability while dead to instantly respawn.", FCVAR_NOTIFY);
-	bStealBlurryOverlay		 = CreateConVar("sm_pt_disable_intercept_blur", "1", "If 1, disable blurry screen overlay after intercepting or stealing.", FCVAR_NOTIFY);
-	bDroppedItemsCollision = CreateConVar("sm_pt_disable_jack_drop_item_collision", "1", "If 1, disables the jack colliding with dropped ammo packs or weapons.", FCVAR_NOTIFY);
-	bPrintStats						 = CreateConVar("sm_pt_print_events", "0", "If 1, enables printing of passtime events to chat both during and after games. Does not affect logging.", FCVAR_NOTIFY);
-	bFunStats							 = CreateConVar("sm_pt_print_events_fun", "0", "If sm_pt_print_events is 1, print additional fun stats, like stealing a goal from a teammate.", FCVAR_NOTIFY);
-	bPracticeMode					 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	bWinstratKills				 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
-	bVerboseLogs					 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
+	bEquipStockWeapons				 = CreateConVar("sm_pt_stock_blocklist", "0", "If 1, disable ability to equip shotgun, stickies, and needles; this is needed as allowlists can't normally block stock weapons.", FCVAR_NOTIFY);
+	bSwitchDuringRespawn			 = CreateConVar("sm_pt_block_instant_respawn", "0", "If 1, disable class switch ability while dead to instantly respawn.", FCVAR_NOTIFY);
+	bStealBlurryOverlay				 = CreateConVar("sm_pt_disable_intercept_blur", "1", "If 1, disable blurry screen overlay after intercepting or stealing.", FCVAR_NOTIFY);
+	bDroppedItemsCollision		 = CreateConVar("sm_pt_disable_jack_drop_item_collision", "1", "If 1, disables the jack colliding with dropped ammo packs or weapons.", FCVAR_NOTIFY);
+	bPrintStats								 = CreateConVar("sm_pt_print_events", "0", "If 1, enables printing of passtime events to chat both during and after games. Does not affect logging.", FCVAR_NOTIFY);
+	bFunStats									 = CreateConVar("sm_pt_print_events_fun", "0", "If sm_pt_print_events is 1, print additional fun stats, like stealing a goal from a teammate.", FCVAR_NOTIFY);
+	bPracticeMode							 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	bWinstratKills						 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
+	bVerboseLogs							 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
+	bMedicArrowsNeutralizeBall = CreateConVar("sm_pt_medic_can_splash", "0", "If 1, allows medic crossbow arrows to neutralize the ball.", FCVAR_NOTIFY);
 	// trikzEnable	 = CreateConVar("sm_pt_trikz", "0", "Set 'trikz' mode. 1 adds friendly knockback for airshots, 2 adds friendly knockback for splash damage, 3 adds friendly knockback for everywhere", FCVAR_NOTIFY, true, 0.0, true, 3.0);
 	// trikzProjCollide = CreateConVar("sm_pt_trikz_projcollide", "2", "Manually set team projectile collision behavior when trikz is on. 2 always collides, 1 will cause your projectiles to phase through if you are too close (default game behavior), 0 will cause them to never collide.", 0, true, 0.0, true, 2.0);
 	// trikzProjDev = CreateConVar("sm_pt_trikz_projcollide_dev", "0", "DONOTUSE; This command is used solely by the plugin to change values. Changing this manually may cause issues.", FCVAR_HIDDEN, true, 0.0, true, 2.0);
@@ -197,10 +207,7 @@ public void OnPluginStart()
 
 	char sMapNameBuffer[256];
 	GetCurrentMap(sMapNameBuffer, 256);
-	if (bVerboseLogs.BoolValue)
-	{
-		LogMessage("Current map buffer -> %s", sMapNameBuffer);
-	}
+	VerboseLog("Current map buffer -> %s", sMapNameBuffer);
 	// check if stadium is the current map in order to set the height lower
 	// see OnMapInit
 	// this is necessary as OnMapInit is not called when the plugin is ran
@@ -250,31 +257,127 @@ public void OnMapStart()	 // getgoallocations
 
 public void OnGameFrame()
 {
-	if (bWatchBall && bBallLoose)
+	// purely a toiletbowl tracker
+	if (bFunStats.BoolValue)
 	{
-		TFTeam ballTeam = GetBallTeam();
-		if (ballTeam != eLastBallTeam)
+		if (bWatchBall && bBallLoose)
 		{
-			LogMessage("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
-			float ballPos[3];
-			GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
-			float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
-			float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
-			LogMessage("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
-			if (bPrintStats.BoolValue)
+			TFTeam ballTeam = GetBallTeam();
+			if (ballTeam != eLastTickBallTeam)
 			{
-				if (distFromBluGoal <= 120)
+				VerboseLog("Ball team changed from %d to %d", eLastTickBallTeam, ballTeam);
+				float ballPos[3];
+				GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
+				float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
+				float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
+				VerboseLog("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
+				if (bPrintStats.BoolValue)
 				{
-					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
-				}
-				else if (distFromRedGoal <= 120)
-				{
-					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+					if (distFromBluGoal <= 120)
+					{
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
+					}
+					else if (distFromRedGoal <= 120)
+					{
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+					}
 				}
 			}
+			eLastTickBallTeam = ballTeam;
 		}
-		eLastBallTeam = ballTeam;
 	}
+}
+
+public void OnEntityCreated(int eIndex, const char[] eClassname)
+{
+	// wrap it around instead of using verboselog to avoid
+	// an unnecessary string cmp
+	if (bVerboseLogs.BoolValue)
+	{
+		if (StrEqual(eClassname, "tf_projectile_rocket"))
+		{
+			LogMessage("tf_projectile_rocket spawned, index: %d", eIndex);
+		}
+	}
+	if (StrEqual(eClassname, "passtime_ball"))
+	{
+		LogMessage("passtime_ball spawned, index: %d", eIndex);
+		if (!SDKHookEx(eIndex, SDKHook_OnTakeDamagePost, PasstimeBallTookDamage))
+		{
+			LogError("Could not hook passtime_ball. Splash detection will not work.");
+		}
+	}
+	if (bMedicArrowsNeutralizeBall.BoolValue)
+	{
+		if (StrEqual(eClassname, "tf_projectile_healing_bolt"))
+		{
+			LogMessage("%s spawned.", eClassname);
+			SDKHookEx(eIndex, SDKHook_StartTouchPost, MedicArrowTouchedSomething);
+		}
+	}
+}
+
+void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damage, int damagetype)
+{
+	LogToGame("passtime ball took damage victim '%d' attacker '%d' inflictor '%d' damage '%.2f' damagetype '%d' ", victim, attacker, inflictor, damage, damagetype);
+	char classname[128];
+	GetEntityClassname(inflictor, classname, sizeof(classname));
+	if (bWatchBall)
+	{
+		// so incredibly ugly
+		if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
+		{
+			int		 playerWhoSplashed = EntRefToEntIndex(GetEntPropEnt(inflictor, Prop_Data, "m_hOwnerEntity"));
+			TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
+			switch (playerTeam)
+			{
+				case TFTeam_Blue:
+				{
+					if (EntInBluGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Red)
+					{
+						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+						if (bPrintStats.BoolValue)
+						{
+							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+						}
+						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+					}
+				}
+				case TFTeam_Red:
+				{
+					if (EntInRedGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Blue)
+					{
+						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+						if (bPrintStats.BoolValue)
+						{
+							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+						}
+						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+					}
+				}
+			}
+			char playerName[MAX_NAME_LENGTH];
+			GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+		}
+	}
+}
+
+void MedicArrowTouchedSomething(int arrow, int other)
+{
+	char classname[64];
+	GetEntityClassname(other, classname, 64);
+	int MedicAttacker = EntRefToEntIndex(GetEntPropEnt(arrow, Prop_Data, "m_hOwnerEntity"));
+	if (StrEqual(classname, "passtime_ball"))
+	{
+		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 50.0);
+	}
+	LogMessage("medic arrow from %d touched %s index %d", MedicAttacker, classname, other);
 }
 
 Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
@@ -546,8 +649,8 @@ Action Event_PassFree(Event event, const char[] name, bool dontBroadcast)
 
 	if (!arrbPlyIsDead[owner])
 	{
-		bWatchBall		= true;
-		eLastBallTeam = ownerTeam;
+		bWatchBall				= true;
+		eLastTickBallTeam = ownerTeam;
 	}
 
 	arrbDeathbombCheck[eiDeathBomber] = false;	// if anyone at all throws the ball, the deathbomb is automatically false
@@ -593,10 +696,7 @@ Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 	bBallLoose				= false;
 	bWatchBall				= false;
 	iBallPickedUpTick = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
 	iPlyWhoGotJack = event.GetInt("owner");
 	float position[3];
 
@@ -663,10 +763,8 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	bBallLoose					 = false;
 
 	iBallPickedUpTick		 = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
+
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
 
 	char throwerName[MAX_NAME_LENGTH], catcherName[MAX_NAME_LENGTH];
 	GetClientName(thrower, throwerName, sizeof(throwerName));
@@ -681,7 +779,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	{
 		if (GetClientTeam(thrower) == GetClientTeam(catcher))
 		{
-			if (InEnemyGoalieZone(catcher))
+			if (PlayerInEnemyGoalieZone(catcher))
 			{
 				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* %s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 			}
@@ -691,7 +789,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	if (GetClientTeam(thrower) != GetClientTeam(catcher))
 	{
 		intercept = true;
-		if (InGoalieZone(catcher))
+		if (PlayerInTeamGoalieZone(catcher))
 		{
 			bSave = true;
 			arriPlyRoundPassStats[catcher].iPlySaves++;
@@ -760,11 +858,8 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack		= thief;
 
 	iBallPickedUpTick = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
-	if (InGoalieZone(thief))
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
+	if (PlayerInTeamGoalieZone(thief))
 	{
 		arriPlyRoundPassStats[thief].iPlySteal2Saves++;
 		steal2save = true;
@@ -798,7 +893,7 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 		FormatPlayerNameWithTeam(thief, thiefNameTeamFormat);
 		FormatPlayerNameWithTeam(victim, victimNameTeamFormat);
 
-		if (InGoalieZone(thief))
+		if (PlayerInTeamGoalieZone(thief))
 		{
 			PrintToAllClientsChat("\x0700ffff[PASS] %s\x07ff8000 defensively stole from\x0700ffff %s!", thiefNameTeamFormat, victimNameTeamFormat);
 			PrintToSTV("[PASS-TV] %s defensively stole from %s. Tick: %d", thiefName, victimName, STVTickCount());
@@ -876,8 +971,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 
 	if (bPrintStats.BoolValue)
 	{
-		// 7 is the length of a color format
-		char playerNameTeamFormatted[MAX_NAME_LENGTH + COLOR_FORMAT_LENGTH], assistantNameTeamFormatted[MAX_NAME_LENGTH + 7];
+		char playerNameTeamFormatted[MAX_TEAMFORMAT_NAME_LENGTH], assistantNameTeamFormatted[MAX_TEAMFORMAT_NAME_LENGTH];
 		FormatPlayerNameWithTeam(scorer, playerNameTeamFormatted);
 		if (arrbPanaceaCheck[scorer] && TF2_GetPlayerClass(scorer) != TFClass_Medic)
 		{
@@ -923,7 +1017,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 }
 
 // Checks if a player is close enough to their team's goal to count as a goalie.
-bool InGoalieZone(int client)
+bool PlayerInTeamGoalieZone(int client)
 {
 	int		team = GetClientTeam(client);
 	float position[3];
@@ -932,20 +1026,48 @@ bool InGoalieZone(int client)
 	if (team == view_as<int>(TFTeam_Blue))
 	{
 		float distance = GetVectorDistance(position, fBluGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < GOALIE_DISTANCE) return true;
 	}
 
 	if (team == view_as<int>(TFTeam_Red))
 	{
 		float distance = GetVectorDistance(position, fRedGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < GOALIE_DISTANCE) return true;
 	}
+	return false;
+}
+
+bool EntInRedGoalZone(int entIndex)
+{
+	float position[3];
+	GetEntPropVector(entIndex, Prop_Send, "m_vecOrigin", position);
+	return PosInRedGoalZone(position);
+}
+
+bool EntInBluGoalZone(int entIndex)
+{
+	float position[3];
+	GetEntPropVector(entIndex, Prop_Send, "m_vecOrigin", position);
+	return PosInBluGoalZone(position);
+}
+
+bool PosInRedGoalZone(float position[3])
+{
+	float dist = GetVectorDistance(position, fRedGoalPos);
+	if (dist < GOALIE_DISTANCE) return true;
+	return false;
+}
+
+bool PosInBluGoalZone(float position[3])
+{
+	float dist = GetVectorDistance(position, fBluGoalPos);
+	if (dist < GOALIE_DISTANCE) return true;
 	return false;
 }
 
 // Checks if a player is close enough to the *enemy* team's goal to count as a blocker.
 // For fun.
-bool InEnemyGoalieZone(int client)
+bool PlayerInEnemyGoalieZone(int client)
 {
 	int		team = GetClientTeam(client);
 	float position[3];
@@ -1003,10 +1125,7 @@ void PrintToAllClientsChat(const char[] format, any...)
 	// this should be a sane max string size value?
 	char stringBuffer[1024];
 	VFormat(stringBuffer, 1024, format, 2);
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Printing this message to all clients: %s", stringBuffer);
-	}
+	VerboseLog("Printing this message to all clients: %s", stringBuffer);
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
@@ -1034,5 +1153,17 @@ stock TFTeam GetBallTeam()
 			return TFTeam_Blue;
 		default:
 			return TFTeam_Unassigned;
+	}
+}
+
+// Utility function
+stock void VerboseLog(const char[] format, any...)
+{
+	if (bVerboseLogs.BoolValue)
+	{
+		// sensible value for max log size?
+		char MessageToLog[256];
+		VFormat(MessageToLog, sizeof(MessageToLog), format, 2);
+		LogMessage("[VERBOSE] %s", MessageToLog);
 	}
 }
