@@ -340,7 +340,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
 						if (bPrintStats.BoolValue)
 						{
-							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
 						}
 						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
 						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
@@ -355,7 +355,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
 						if (bPrintStats.BoolValue)
 						{
-							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
 						}
 						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
 						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
