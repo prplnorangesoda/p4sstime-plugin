@@ -44,6 +44,7 @@ enum struct enuiPlyRoundStats
 	int iPlySaves;
 	int iPlyIntercepts;
 	int iPlySteals;
+	int iPlySplashSaves;
 	int iPlyPanaceas;
 	int iPlyWinStrats;
 	int iPlyDeathbombs;
@@ -259,12 +260,12 @@ public void OnGameFrame()
 			TFTeam ballTeam = GetBallTeam();
 			if (ballTeam != eLastBallTeam)
 			{
-				LogMessage("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
+				VerboseLog("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
 				float ballPos[3];
 				GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
 				float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
 				float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
-				LogMessage("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
+				VerboseLog("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
 				if (bPrintStats.BoolValue)
 				{
 					if (distFromBluGoal <= 120)
@@ -309,6 +310,42 @@ public void OnEntityCreated(int eIndex, const char[] eClassname)
 void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damage, int damagetype)
 {
 	LogToGame("passtime ball took damage victim '%d' attacker '%d' inflictor '%d' damage '%.2f' damagetype '%d' ", victim, attacker, inflictor, damage, damagetype);
+	char classname[128];
+	GetEntityClassname(inflictor, classname, sizeof(classname));
+	if (bWatchBall)
+	{
+		// so incredibly ugly
+		if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
+		{
+			int		 playerWhoSplashed = EntRefToEntIndex(GetEntPropEnt(inflictor, Prop_Data, "m_hOwnerEntity"));
+			TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
+			switch (playerTeam)
+			{
+				case TFTeam_Blue:
+				{
+					if (EntInBluGoalZone(eiJack))
+					{
+						char playerName[MAX_NAME_LENGTH];
+						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+						PrintToAllClientsChat("[PASS] %s splashed the ball to save!", playerName);
+						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+					}
+				}
+				case TFTeam_Red:
+				{
+					if (EntInRedGoalZone(eiJack))
+					{
+						char playerName[MAX_NAME_LENGTH];
+						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+						PrintToAllClientsChat("[PASS] %s splashed the ball to save!", playerName);
+						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+					}
+				}
+			}
+			char playerName[MAX_NAME_LENGTH];
+			GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+		}
+	}
 }
 
 void MedicArrowTouchedSomething(int arrow, int other)
@@ -914,8 +951,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 
 	if (bPrintStats.BoolValue)
 	{
-		// 7 is the length of a color format
-		char playerNameTeamFormatted[MAX_NAME_LENGTH + COLOR_FORMAT_LENGTH], assistantNameTeamFormatted[MAX_NAME_LENGTH + 7];
+		char playerNameTeamFormatted[MAX_TEAMFORMAT_NAME_LENGTH], assistantNameTeamFormatted[MAX_TEAMFORMAT_NAME_LENGTH];
 		FormatPlayerNameWithTeam(scorer, playerNameTeamFormatted);
 		if (arrbPanaceaCheck[scorer] && TF2_GetPlayerClass(scorer) != TFClass_Medic)
 		{
@@ -981,33 +1017,28 @@ bool PlayerInTeamGoalieZone(int client)
 	return false;
 }
 
-// Checks if an entity (e.g. the Jack) is close enough to a goal to count as a save.
-// -1 - neither
-// 1 - Blue
-// 2 - Red
-int EntInGoalieZone(int entIndex)
+bool EntInRedGoalZone(int entIndex)
 {
 	float position[3];
 	GetEntPropVector(entIndex, Prop_Send, "m_vecOrigin", position);
-	if (PosInBluGoalieZone(position))
-	{
-		return 1;
-	}
-	else if (PosInRedGoalieZone(position))
-	{
-		return 2;
-	}
-	return -1;
+	return PosInRedGoalZone(position);
 }
 
-bool PosInRedGoalieZone(float position[3])
+bool EntInBluGoalZone(int entIndex)
+{
+	float position[3];
+	GetEntPropVector(entIndex, Prop_Send, "m_vecOrigin", position);
+	return PosInBluGoalZone(position);
+}
+
+bool PosInRedGoalZone(float position[3])
 {
 	float dist = GetVectorDistance(position, fRedGoalPos);
 	if (dist < GOALIE_DISTANCE) return true;
 	return false;
 }
 
-bool PosInBluGoalieZone(float position[3])
+bool PosInBluGoalZone(float position[3])
 {
 	float dist = GetVectorDistance(position, fBluGoalPos);
 	if (dist < GOALIE_DISTANCE) return true;
