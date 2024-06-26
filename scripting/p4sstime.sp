@@ -14,6 +14,7 @@ enum
 {
 	COLOR_FORMAT_LENGTH				 = 7,
 	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH,
+	MAX_ENTITIES							 = 4096,
 	GOALIE_DISTANCE						 = 200
 }
 
@@ -68,6 +69,7 @@ ConVar							bWinstratKills;
 ConVar							bFunStats;
 ConVar							bPracticeMode;
 ConVar							bVerboseLogs;
+ConVar							bMedicArrowsNeutralizeBall;
 
 int									iPlyWhoGotJack;
 // int			plyDirecter;
@@ -166,15 +168,16 @@ public void OnPluginStart()
 	HookEntityOutput("info_passtime_ball_spawn", "OnSpawnBall", Hook_OnSpawnBall);
 	AddCommandListener(OnChangeClass, "joinclass");
 
-	bEquipStockWeapons		 = CreateConVar("sm_pt_stock_blocklist", "0", "If 1, disable ability to equip shotgun, stickies, and needles; this is needed as allowlists can't normally block stock weapons.", FCVAR_NOTIFY);
-	bSwitchDuringRespawn	 = CreateConVar("sm_pt_block_instant_respawn", "0", "If 1, disable class switch ability while dead to instantly respawn.", FCVAR_NOTIFY);
-	bStealBlurryOverlay		 = CreateConVar("sm_pt_disable_intercept_blur", "1", "If 1, disable blurry screen overlay after intercepting or stealing.", FCVAR_NOTIFY);
-	bDroppedItemsCollision = CreateConVar("sm_pt_disable_jack_drop_item_collision", "1", "If 1, disables the jack colliding with dropped ammo packs or weapons.", FCVAR_NOTIFY);
-	bPrintStats						 = CreateConVar("sm_pt_print_events", "0", "If 1, enables printing of passtime events to chat both during and after games. Does not affect logging.", FCVAR_NOTIFY);
-	bFunStats							 = CreateConVar("sm_pt_print_events_fun", "0", "If sm_pt_print_events is 1, print additional fun stats, like stealing a goal from a teammate.", FCVAR_NOTIFY);
-	bPracticeMode					 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	bWinstratKills				 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
-	bVerboseLogs					 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
+	bEquipStockWeapons				 = CreateConVar("sm_pt_stock_blocklist", "0", "If 1, disable ability to equip shotgun, stickies, and needles; this is needed as allowlists can't normally block stock weapons.", FCVAR_NOTIFY);
+	bSwitchDuringRespawn			 = CreateConVar("sm_pt_block_instant_respawn", "0", "If 1, disable class switch ability while dead to instantly respawn.", FCVAR_NOTIFY);
+	bStealBlurryOverlay				 = CreateConVar("sm_pt_disable_intercept_blur", "1", "If 1, disable blurry screen overlay after intercepting or stealing.", FCVAR_NOTIFY);
+	bDroppedItemsCollision		 = CreateConVar("sm_pt_disable_jack_drop_item_collision", "1", "If 1, disables the jack colliding with dropped ammo packs or weapons.", FCVAR_NOTIFY);
+	bPrintStats								 = CreateConVar("sm_pt_print_events", "0", "If 1, enables printing of passtime events to chat both during and after games. Does not affect logging.", FCVAR_NOTIFY);
+	bFunStats									 = CreateConVar("sm_pt_print_events_fun", "0", "If sm_pt_print_events is 1, print additional fun stats, like stealing a goal from a teammate.", FCVAR_NOTIFY);
+	bPracticeMode							 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	bWinstratKills						 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
+	bVerboseLogs							 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
+	bMedicArrowsNeutralizeBall = CreateConVar("sm_pt_medic_can_splash", "0", "If 1, allows medic crossbow arrows to neutralize the ball.", FCVAR_NOTIFY);
 	// trikzEnable	 = CreateConVar("sm_pt_trikz", "0", "Set 'trikz' mode. 1 adds friendly knockback for airshots, 2 adds friendly knockback for splash damage, 3 adds friendly knockback for everywhere", FCVAR_NOTIFY, true, 0.0, true, 3.0);
 	// trikzProjCollide = CreateConVar("sm_pt_trikz_projcollide", "2", "Manually set team projectile collision behavior when trikz is on. 2 always collides, 1 will cause your projectiles to phase through if you are too close (default game behavior), 0 will cause them to never collide.", 0, true, 0.0, true, 2.0);
 	// trikzProjDev = CreateConVar("sm_pt_trikz_projcollide_dev", "0", "DONOTUSE; This command is used solely by the plugin to change values. Changing this manually may cause issues.", FCVAR_HIDDEN, true, 0.0, true, 2.0);
@@ -198,10 +201,7 @@ public void OnPluginStart()
 
 	char sMapNameBuffer[256];
 	GetCurrentMap(sMapNameBuffer, 256);
-	if (bVerboseLogs.BoolValue)
-	{
-		LogMessage("Current map buffer -> %s", sMapNameBuffer);
-	}
+	VerboseLog("Current map buffer -> %s", sMapNameBuffer);
 	// check if stadium is the current map in order to set the height lower
 	// see OnMapInit
 	// this is necessary as OnMapInit is not called when the plugin is ran
@@ -280,6 +280,47 @@ public void OnGameFrame()
 			eLastBallTeam = ballTeam;
 		}
 	}
+}
+
+public void OnEntityCreated(int eIndex, const char[] eClassname)
+{
+	if (StrEqual(eClassname, "tf_projectile_rocket"))
+	{
+		LogMessage("tf_projectile_rocket spawned, index: %d", eIndex);
+	}
+	else if (StrEqual(eClassname, "passtime_ball"))
+	{
+		LogMessage("passtime_ball spawned, index: %d", eIndex);
+		if (!SDKHookEx(eIndex, SDKHook_OnTakeDamagePost, PasstimeBallTookDamage))
+		{
+			LogError("Could not hook passtime_ball");
+		}
+	}
+	if (bMedicArrowsNeutralizeBall.BoolValue)
+	{
+		if (StrEqual(eClassname, "tf_projectile_healing_bolt"))
+		{
+			LogMessage("%s spawned.", eClassname);
+			SDKHookEx(eIndex, SDKHook_StartTouchPost, MedicArrowTouchedSomething);
+		}
+	}
+}
+
+void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damage, int damagetype)
+{
+	LogToGame("passtime ball took damage victim '%d' attacker '%d' inflictor '%d' damage '%.2f' damagetype '%d' ", victim, attacker, inflictor, damage, damagetype);
+}
+
+void MedicArrowTouchedSomething(int arrow, int other)
+{
+	char classname[64];
+	GetEntityClassname(other, classname, 64);
+	int MedicAttacker = EntRefToEntIndex(GetEntPropEnt(arrow, Prop_Data, "m_hOwnerEntity"));
+	if (StrEqual(classname, "passtime_ball"))
+	{
+		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 50.0);
+	}
+	LogMessage("medic arrow from %d touched %s index %d", MedicAttacker, classname, other);
 }
 
 Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
@@ -598,10 +639,7 @@ Action Event_PassGet(Event event, const char[] name, bool dontBroadcast)
 	bBallLoose				= false;
 	bWatchBall				= false;
 	iBallPickedUpTick = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
 	iPlyWhoGotJack = event.GetInt("owner");
 	float position[3];
 
@@ -668,10 +706,8 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	bBallLoose					 = false;
 
 	iBallPickedUpTick		 = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
+
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
 
 	char throwerName[MAX_NAME_LENGTH], catcherName[MAX_NAME_LENGTH];
 	GetClientName(thrower, throwerName, sizeof(throwerName));
@@ -765,10 +801,7 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 	iPlyWhoGotJack		= thief;
 
 	iBallPickedUpTick = GetGameTickCount();
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
-	}
+	VerboseLog("Ball picked up - tick: %d", iBallPickedUpTick);
 	if (PlayerInTeamGoalieZone(thief))
 	{
 		arriPlyRoundPassStats[thief].iPlySteal2Saves++;
@@ -1041,10 +1074,7 @@ void PrintToAllClientsChat(const char[] format, any...)
 	// this should be a sane max string size value?
 	char stringBuffer[1024];
 	VFormat(stringBuffer, 1024, format, 2);
-	if (bVerboseLogs.BoolValue)
-	{
-		LogToGame("Printing this message to all clients: %s", stringBuffer);
-	}
+	VerboseLog("Printing this message to all clients: %s", stringBuffer);
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
 		if (!IsValidClient(x) || IsClientSourceTV(x)) continue;
@@ -1072,5 +1102,17 @@ stock TFTeam GetBallTeam()
 			return TFTeam_Blue;
 		default:
 			return TFTeam_Unassigned;
+	}
+}
+
+// Utility function
+stock void VerboseLog(const char[] format, any...)
+{
+	if (bVerboseLogs.BoolValue)
+	{
+		// sensible value for max log size?
+		char MessageToLog[256];
+		VFormat(MessageToLog, sizeof(MessageToLog), format, 2);
+		LogMessage("[VERBOSE] %s", MessageToLog);
 	}
 }
