@@ -13,7 +13,8 @@
 enum
 {
 	COLOR_FORMAT_LENGTH				 = 7,
-	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH
+	MAX_TEAMFORMAT_NAME_LENGTH = COLOR_FORMAT_LENGTH + MAX_NAME_LENGTH,
+	GOALIE_DISTANCE						 = 200
 }
 
 // enum BallState
@@ -250,30 +251,34 @@ public void OnMapStart()	 // getgoallocations
 
 public void OnGameFrame()
 {
-	if (bWatchBall && bBallLoose)
+	// purely a toiletbowl tracker
+	if (bFunStats.BoolValue)
 	{
-		TFTeam ballTeam = GetBallTeam();
-		if (ballTeam != eLastBallTeam)
+		if (bWatchBall && bBallLoose)
 		{
-			LogMessage("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
-			float ballPos[3];
-			GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
-			float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
-			float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
-			LogMessage("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
-			if (bPrintStats.BoolValue)
+			TFTeam ballTeam = GetBallTeam();
+			if (ballTeam != eLastBallTeam)
 			{
-				if (distFromBluGoal <= 120)
+				LogMessage("Ball team changed from %d to %d", eLastBallTeam, ballTeam);
+				float ballPos[3];
+				GetEntPropVector(eiJack, Prop_Send, "m_vecOrigin", ballPos);
+				float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
+				float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
+				LogMessage("Distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
+				if (bPrintStats.BoolValue)
 				{
-					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
-				}
-				else if (distFromRedGoal <= 120)
-				{
-					PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+					if (distFromBluGoal <= 120)
+					{
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
+					}
+					else if (distFromRedGoal <= 120)
+					{
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+					}
 				}
 			}
+			eLastBallTeam = ballTeam;
 		}
-		eLastBallTeam = ballTeam;
 	}
 }
 
@@ -681,7 +686,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	{
 		if (GetClientTeam(thrower) == GetClientTeam(catcher))
 		{
-			if (InEnemyGoalieZone(catcher))
+			if (PlayerInEnemyGoalieZone(catcher))
 			{
 				PrintToAllClientsChat("\x0700ffff[PASS] %s \x07ffff00blocked *their teammate* %s\x0700ffff from scoring!", catcherNameTeamFormat, throwerNameTeamFormat);
 			}
@@ -691,7 +696,7 @@ Action Event_PassCaught(Handle event, const char[] name, bool dontBroadcast)
 	if (GetClientTeam(thrower) != GetClientTeam(catcher))
 	{
 		intercept = true;
-		if (InGoalieZone(catcher))
+		if (PlayerInTeamGoalieZone(catcher))
 		{
 			bSave = true;
 			arriPlyRoundPassStats[catcher].iPlySaves++;
@@ -764,7 +769,7 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 	{
 		LogToGame("Ball picked up - tick: %d", iBallPickedUpTick);
 	}
-	if (InGoalieZone(thief))
+	if (PlayerInTeamGoalieZone(thief))
 	{
 		arriPlyRoundPassStats[thief].iPlySteal2Saves++;
 		steal2save = true;
@@ -798,7 +803,7 @@ Action Event_PassStolen(Event event, const char[] name, bool dontBroadcast)
 		FormatPlayerNameWithTeam(thief, thiefNameTeamFormat);
 		FormatPlayerNameWithTeam(victim, victimNameTeamFormat);
 
-		if (InGoalieZone(thief))
+		if (PlayerInTeamGoalieZone(thief))
 		{
 			PrintToAllClientsChat("\x0700ffff[PASS] %s\x07ff8000 defensively stole from\x0700ffff %s!", thiefNameTeamFormat, victimNameTeamFormat);
 			PrintToSTV("[PASS-TV] %s defensively stole from %s. Tick: %d", thiefName, victimName, STVTickCount());
@@ -923,7 +928,7 @@ Action Event_PassScore(Event event, const char[] name, bool dontBroadcast)
 }
 
 // Checks if a player is close enough to their team's goal to count as a goalie.
-bool InGoalieZone(int client)
+bool PlayerInTeamGoalieZone(int client)
 {
 	int		team = GetClientTeam(client);
 	float position[3];
@@ -932,20 +937,53 @@ bool InGoalieZone(int client)
 	if (team == view_as<int>(TFTeam_Blue))
 	{
 		float distance = GetVectorDistance(position, fBluGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < GOALIE_DISTANCE) return true;
 	}
 
 	if (team == view_as<int>(TFTeam_Red))
 	{
 		float distance = GetVectorDistance(position, fRedGoalPos, false);
-		if (distance < 200) return true;
+		if (distance < GOALIE_DISTANCE) return true;
 	}
+	return false;
+}
+
+// Checks if an entity (e.g. the Jack) is close enough to a goal to count as a save.
+// -1 - neither
+// 1 - Blue
+// 2 - Red
+int EntInGoalieZone(int entIndex)
+{
+	float position[3];
+	GetEntPropVector(entIndex, Prop_Send, "m_vecOrigin", position);
+	if (PosInBluGoalieZone(position))
+	{
+		return 1;
+	}
+	else if (PosInRedGoalieZone(position))
+	{
+		return 2;
+	}
+	return -1;
+}
+
+bool PosInRedGoalieZone(float position[3])
+{
+	float dist = GetVectorDistance(position, fRedGoalPos);
+	if (dist < GOALIE_DISTANCE) return true;
+	return false;
+}
+
+bool PosInBluGoalieZone(float position[3])
+{
+	float dist = GetVectorDistance(position, fBluGoalPos);
+	if (dist < GOALIE_DISTANCE) return true;
 	return false;
 }
 
 // Checks if a player is close enough to the *enemy* team's goal to count as a blocker.
 // For fun.
-bool InEnemyGoalieZone(int client)
+bool PlayerInEnemyGoalieZone(int client)
 {
 	int		team = GetClientTeam(client);
 	float position[3];
