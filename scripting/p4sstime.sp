@@ -6,7 +6,7 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION					"2.5.0-pre1"
+#define VERSION					"2.5.0-SPLASHDETECT"
 
 #define GOALSCOLOR			"\x073BC43B"
 #define ASSISTSCOLOR		"\x073bc48f"
@@ -335,9 +335,11 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 				{
 					if (EntInBluGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Red)
 					{
-						char playerName[MAX_NAME_LENGTH];
+						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
-						PrintToAllClientsChat("[PASS] %s splashed the ball to save!", playerName);
+						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
 						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
 					}
 				}
@@ -345,9 +347,11 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 				{
 					if (EntInRedGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Blue)
 					{
-						char playerName[MAX_NAME_LENGTH];
+						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
-						PrintToAllClientsChat("[PASS] %s splashed the ball to save!", playerName);
+						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed \x0700ffffthe ball to save!", playerNameTeam);
+						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
 						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
 					}
 				}
