@@ -1,6 +1,6 @@
 #include <tf2_stocks>
 #include <sdkhooks>
-#include <dhooks>
+//#include <dhooks>
 #include <clientprefs>
 
 #pragma semicolon 1	 // required for logs.tf
