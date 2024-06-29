@@ -151,6 +151,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_pt_jackpickup_sound", Command_PasstimeJackPickupSound);
 	RegConsoleCmd("sm_pt_simplechatprint", Command_PasstimeSimpleChatPrint);
 	RegConsoleCmd("sm_pt_togglechatprint", Command_PasstimeToggleChatPrint);
+	RegAdminCmd("sm_ptsnapshot", Command_GamestateSnapshot, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_ptspawnball", Command_PasstimeSpawnBall, ADMFLAG_CONFIG, "Spawn the ball forcefully, by game starting and tournament restarting.");
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -221,6 +222,7 @@ public void OnPluginStart()
 }
 
 //#include <p4sstime/trikz.sp>
+#include "p4sstime/snapshot.sp"
 #include "p4sstime/logs.sp"
 #include "p4sstime/pass_menu.sp"
 #include "p4sstime/practice.sp"
@@ -329,11 +331,12 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 		{
 			int		 playerWhoSplashed = EntRefToEntIndex(GetEntPropEnt(inflictor, Prop_Data, "m_hOwnerEntity"));
 			TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
+			TFTeam ballTeam					 = GetBallTeam();
 			switch (playerTeam)
 			{
 				case TFTeam_Blue:
 				{
-					if (EntInBluGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Red)
+					if (EntInBluGoalZone(eiJack) && ballTeam == TFTeam_Red)
 					{
 						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
@@ -348,7 +351,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 				}
 				case TFTeam_Red:
 				{
-					if (EntInRedGoalZone(eiJack) && eLastTickBallTeam == TFTeam_Blue)
+					if (EntInRedGoalZone(eiJack) && ballTeam == TFTeam_Blue)
 					{
 						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
 						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
@@ -362,8 +365,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 					}
 				}
 			}
-			char playerName[MAX_NAME_LENGTH];
-			GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+			bWatchBall = false;
 		}
 	}
 }
@@ -375,7 +377,7 @@ void MedicArrowTouchedSomething(int arrow, int other)
 	int MedicAttacker = EntRefToEntIndex(GetEntPropEnt(arrow, Prop_Data, "m_hOwnerEntity"));
 	if (StrEqual(classname, "passtime_ball"))
 	{
-		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 50.0);
+		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 50.0, -1, -1, NULL_VECTOR, NULL_VECTOR, false);
 	}
 	LogMessage("medic arrow from %d touched %s index %d", MedicAttacker, classname, other);
 }
