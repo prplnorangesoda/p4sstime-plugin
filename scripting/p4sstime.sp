@@ -96,7 +96,7 @@ bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
 bool								bBallLoose;
 bool								bWatchBall;
-TFTeam							eLastTickBallTeam;
+TFTeam							eLastTickBallTeam;	// in effect, this is "last thrown ball team"
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
 bool								arrbBlastJumpStatus[MAXPLAYERS + 1];	// true if blast jumping, false if has landed
 bool								arrbPanaceaCheck[MAXPLAYERS + 1];
@@ -277,11 +277,11 @@ public void OnGameFrame()
 				{
 					if (distFromBluGoal <= 120)
 					{
-						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 28);
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromBluGoal - 20);
 					}
 					else if (distFromRedGoal <= 120)
 					{
-						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 28);
+						PrintToAllClientsChat("\x0700ffff[PASS] The ball went neutral %.2fhu\x0700ffff from the goal!", distFromRedGoal - 20);
 					}
 				}
 			}
@@ -292,18 +292,18 @@ public void OnGameFrame()
 
 public void OnEntityCreated(int eIndex, const char[] eClassname)
 {
-	// wrap it around instead of using verboselog to avoid
-	// an unnecessary string cmp
+	// wrap it around and double check cvar
+	// bad but avoids an unnecessary string cmp
 	if (bVerboseLogs.BoolValue)
 	{
 		if (StrEqual(eClassname, "tf_projectile_rocket"))
 		{
-			LogMessage("tf_projectile_rocket spawned, index: %d", eIndex);
+			VerboseLog("tf_projectile_rocket spawned, index: %d", eIndex);
 		}
 	}
 	if (StrEqual(eClassname, "passtime_ball"))
 	{
-		LogMessage("passtime_ball spawned, index: %d", eIndex);
+		LogMessage("passtime_ball spawned index \"%d\"", eIndex);
 		if (!SDKHookEx(eIndex, SDKHook_OnTakeDamagePost, PasstimeBallTookDamage))
 		{
 			LogError("Could not hook passtime_ball. Splash detection will not work.");
@@ -321,52 +321,51 @@ public void OnEntityCreated(int eIndex, const char[] eClassname)
 
 void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damage, int damagetype)
 {
-	LogToGame("passtime ball took damage victim '%d' attacker '%d' inflictor '%d' damage '%.2f' damagetype '%d' ", victim, attacker, inflictor, damage, damagetype);
-	char classname[128];
+	TFTeam ballTeam = eLastTickBallTeam;
+	char	 classname[128];
 	GetEntityClassname(inflictor, classname, sizeof(classname));
-	if (bWatchBall)
+	LogToGame("passtime_ball took damage victim '%d' attacker '%d' inflictor '%d' damage '%.2f' damagetype '%d' inflictor classname '%s' ", victim, attacker, inflictor, damage, damagetype, classname);
+	// so incredibly ugly
+	if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
 	{
-		// so incredibly ugly
-		if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
+		VerboseLog("classname matched a valid projectile, checking for splash");
+		int		 playerWhoSplashed = attacker;
+		TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
+		VerboseLog("playerWhoSplashed: %d, playerTeam: %s, ballTeam: %s", playerWhoSplashed, TFTeamToString(playerTeam), TFTeamToString(ballTeam));
+		switch (playerTeam)
 		{
-			int		 playerWhoSplashed = attacker;
-			TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
-			TFTeam ballTeam					 = GetBallTeam();
-			switch (playerTeam)
+			case TFTeam_Blue:
 			{
-				case TFTeam_Blue:
+				if (EntInBluGoalZone(eiJack) && ballTeam == TFTeam_Red)
 				{
-					if (EntInBluGoalZone(eiJack) && ballTeam == TFTeam_Red)
+					char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+					GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+					FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+					if (bPrintStats.BoolValue)
 					{
-						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
-						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
-						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
-						if (bPrintStats.BoolValue)
-						{
-							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
-						}
-						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
-						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
 					}
-				}
-				case TFTeam_Red:
-				{
-					if (EntInRedGoalZone(eiJack) && ballTeam == TFTeam_Blue)
-					{
-						char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
-						GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
-						FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
-						if (bPrintStats.BoolValue)
-						{
-							PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
-						}
-						PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
-						arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
-					}
+					PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+					arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
 				}
 			}
-			bWatchBall = false;
+			case TFTeam_Red:
+			{
+				if (EntInRedGoalZone(eiJack) && ballTeam == TFTeam_Blue)
+				{
+					char playerName[MAX_NAME_LENGTH], playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+					GetClientName(playerWhoSplashed, playerName, sizeof(playerName));
+					FormatPlayerNameWithTeam(playerWhoSplashed, playerNameTeam);
+					if (bPrintStats.BoolValue)
+					{
+						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
+					}
+					PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+					arriPlyRoundPassStats[playerWhoSplashed].iPlySplashSaves++;
+				}
+			}
 		}
+		bWatchBall = false;
 	}
 }
 
@@ -1141,8 +1140,13 @@ void PrintToAllClientsChat(const char[] format, any...)
 // 3: TF_TEAM_BLU
 stock TFTeam GetBallTeam()
 {
-	if (eiJack == 0 || !IsValidEntity(eiJack)) return TFTeam_Unassigned;
+	if (eiJack == 0 || !IsValidEntity(eiJack))
+	{
+		LogStackTrace("Ball entity invalid, returning Unassigned");
+		return TFTeam_Unassigned;
+	}
 	int team = GetEntProp(eiJack, Prop_Send, "m_iTeamNum");
+	VerboseLog("Ball team returned: %d", team);
 	switch (team)
 	{
 		case 0:
@@ -1168,4 +1172,29 @@ stock void VerboseLog(const char[] format, any...)
 		VFormat(MessageToLog, sizeof(MessageToLog), format, 2);
 		LogMessage("[VERBOSE] %s", MessageToLog);
 	}
+}
+
+stock char[] TFTeamToString(TFTeam input)
+{
+	char string[4];
+	switch (input)
+	{
+		case TFTeam_Blue:
+		{
+			string = "BLU";
+		}
+		case TFTeam_Red:
+		{
+			string = "RED";
+		}
+		case TFTeam_Spectator:
+		{
+			string = "SPC";
+		}
+		case TFTeam_Unassigned:
+		{
+			string = "UNA";
+		}
+	}
+	return string;
 }
