@@ -329,7 +329,7 @@ void PasstimeBallTookDamage(int victim, int attacker, int inflictor, float damag
 		// so incredibly ugly
 		if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
 		{
-			int		 playerWhoSplashed = EntRefToEntIndex(GetEntPropEnt(inflictor, Prop_Data, "m_hOwnerEntity"));
+			int		 playerWhoSplashed = attacker;
 			TFTeam playerTeam				 = TF2_GetClientTeam(playerWhoSplashed);
 			TFTeam ballTeam					 = GetBallTeam();
 			switch (playerTeam)
