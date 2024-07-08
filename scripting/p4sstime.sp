@@ -120,7 +120,7 @@ char								moreurl[128];
 public Plugin myinfo =
 {
 	name				= "4v4 PASS Time Extension",
-	author			= "blake++ (lxdi fork)",
+	author			= "https://discord.passtime.tf/",
 	description = "The main plugin for 4v4 Competitive PASS Time. This version was forked from https://github.com/blakeplusplus/p4sstime/.`",
 	version			= VERSION,
 	url					= "https://github.com/prplnorangesoda/p4sstime/releases"
