@@ -254,7 +254,7 @@ static const char consoleFormatTitleRed[] = "//   RED | %s";
 static const char consoleFormat1[]				= "//   %d goals, %d assists, %d saves, %d intercepts, %d steals                  //";
 static const char consoleFormat2[]				= "//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs                   //";
 static const char consoleFormat3[]				= "//   %d first grabs, %d catapults, %d blocks, %d steal2saves                  //";
-static const char consoleFormat4[]        = "//   %d splash saves                                                       //";
+static const char consoleFormat4[]				= "//   %d splash saves                                                       //";
 
 // a player takes up 7 lines
 // this is a sad amount of arguments
@@ -283,7 +283,7 @@ void							GetConsoleStatsArrStr(char buf[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH]
 		Format(buf[i][2], MAX_MESSAGE_LENGTH, consoleFormat1, stats.iPlyScores, stats.iPlyAssists, stats.iPlySaves, stats.iPlyIntercepts, stats.iPlySteals);
 		Format(buf[i][3], MAX_MESSAGE_LENGTH, consoleFormat2, stats.iPlyPanaceas, stats.iPlyWinStrats, stats.iPlyDeathbombs, stats.iPlyHandoffs);
 		Format(buf[i][4], MAX_MESSAGE_LENGTH, consoleFormat3, stats.iPlyFirstGrabs, stats.iPlyCatapults, stats.iPlyBlocks, stats.iPlySteal2Saves);
-    Format(buf[i][5], MAX_MESSAGE_LENGTH, consoleFormat4, stats.iPlySplashSaves);
+		Format(buf[i][5], MAX_MESSAGE_LENGTH, consoleFormat4, stats.iPlySplashSaves);
 		Format(buf[i][6], MAX_MESSAGE_LENGTH, consoleFormatBlank);
 	}
 }
