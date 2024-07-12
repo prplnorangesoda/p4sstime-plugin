@@ -13,12 +13,14 @@ static const char sAssistsLongFormat[]			= "\x073bc48f assists %d";
 static const char sSavesLongFormat[]				= "\x07ffff00 saves %d";
 static const char sInterceptsLongFormat[]		= "\x07ff00ff intercepts %d";
 static const char sStealsLongFormat[]				= "\x07ff8000 steals %d";
+static const char sSplashesLongFormat[]			= "\x075bd4b3 splashes %d";
 
 static const char sGoalsSimpleFormat[]			= "\x073BC43B GLS %d";
 static const char sAssistsSimpleFormat[]		= "\x073bc48f AST %d";
 static const char sSavesSimpleFormat[]			= "\x07ffff00 SAV %d";
 static const char sInterceptsSimpleFormat[] = "\x07ff00ff INT %d";
 static const char sStealsSimpleFormat[]			= "\x07ff8000 STL %d";
+static const char sSplashesSimpleFormat[]		= "\x075bd4b3 SPL %d";
 
 Action
 	Command_PasstimeSimpleChatPrint(int client, int args)
@@ -90,6 +92,7 @@ void ClearLocalStats(int client)
 	arriPlyRoundPassStats[client].iPlyScores			= 0;
 	arriPlyRoundPassStats[client].iPlyAssists			= 0;
 	arriPlyRoundPassStats[client].iPlySaves				= 0;
+	arriPlyRoundPassStats[client].iPlySplashSaves = 0;
 	arriPlyRoundPassStats[client].iPlyIntercepts	= 0;
 	arriPlyRoundPassStats[client].iPlySteals			= 0;
 	arriPlyRoundPassStats[client].iPlyPanaceas		= 0;
@@ -161,8 +164,8 @@ Action Timer_DisplayStats(Handle timer)
 	char arrStrRedSimpleStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
 	char arrStrBluSimpleStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
 
-	char arrStrConsoleStatsRed[MAXPLAYERS + 1][6][MAX_MESSAGE_LENGTH];
-	char arrStrConsoleStatsBlu[MAXPLAYERS + 1][6][MAX_MESSAGE_LENGTH];
+	char arrStrConsoleStatsRed[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH];
+	char arrStrConsoleStatsBlu[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH];
 
 	GetTeamStatsArrStr(arrStrRedTeamStats, redTeam, redAmount);
 	GetTeamStatsArrStr(arrStrBluTeamStats, bluTeam, bluAmount);
@@ -251,14 +254,15 @@ static const char consoleFormatTitleRed[] = "//   RED | %s";
 static const char consoleFormat1[]				= "//   %d goals, %d assists, %d saves, %d intercepts, %d steals                  //";
 static const char consoleFormat2[]				= "//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs                   //";
 static const char consoleFormat3[]				= "//   %d first grabs, %d catapults, %d blocks, %d steal2saves                  //";
+static const char consoleFormat4[]        = "//   %d splash saves                                                       //";
 
-// a player takes up 6 lines
+// a player takes up 7 lines
 // this is a sad amount of arguments
 // three dimensional array structure:
 // dimension 1: a player
 // dimension 2: their stat strings
 
-void							GetConsoleStatsArrStr(char buf[MAXPLAYERS + 1][6][MAX_MESSAGE_LENGTH], int[] teamMembers, int teamAmount, bool isBlu)
+void							GetConsoleStatsArrStr(char buf[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH], int[] teamMembers, int teamAmount, bool isBlu)
 {
 	for (int i = 0; i < teamAmount; i++)
 	{
@@ -279,7 +283,8 @@ void							GetConsoleStatsArrStr(char buf[MAXPLAYERS + 1][6][MAX_MESSAGE_LENGTH]
 		Format(buf[i][2], MAX_MESSAGE_LENGTH, consoleFormat1, stats.iPlyScores, stats.iPlyAssists, stats.iPlySaves, stats.iPlyIntercepts, stats.iPlySteals);
 		Format(buf[i][3], MAX_MESSAGE_LENGTH, consoleFormat2, stats.iPlyPanaceas, stats.iPlyWinStrats, stats.iPlyDeathbombs, stats.iPlyHandoffs);
 		Format(buf[i][4], MAX_MESSAGE_LENGTH, consoleFormat3, stats.iPlyFirstGrabs, stats.iPlyCatapults, stats.iPlyBlocks, stats.iPlySteal2Saves);
-		Format(buf[i][5], MAX_MESSAGE_LENGTH, consoleFormatBlank);
+    Format(buf[i][5], MAX_MESSAGE_LENGTH, consoleFormat4, stats.iPlySplashSaves);
+		Format(buf[i][6], MAX_MESSAGE_LENGTH, consoleFormatBlank);
 	}
 }
 
@@ -315,14 +320,13 @@ void Print3DMultilineToConsole(int client, char[][][] lines, int length, int hei
 static void
 	AssembleColoredStatsString(char[] buf, int maxLength, int client, bool simplified = false)
 {
-#if defined(VERBOSE)
-	LogMessage("Assembling stats for client: %d", client);
-#endif
+	VerboseLog("Assembling stats for client: %d", client);
 	char sGoals[48];
 	char sAssists[48];
 	char sSaves[48];
 	char sIntercepts[48];
 	char sSteals[48];
+	char sSplashes[48];
 	if (simplified)
 	{
 		Format(sGoals, sizeof(sGoals), sGoalsSimpleFormat, arriPlyRoundPassStats[client].iPlyScores);
@@ -330,6 +334,7 @@ static void
 		Format(sSaves, sizeof(sSaves), sSavesSimpleFormat, arriPlyRoundPassStats[client].iPlySaves);
 		Format(sIntercepts, sizeof(sIntercepts), sInterceptsSimpleFormat, arriPlyRoundPassStats[client].iPlyIntercepts);
 		Format(sSteals, sizeof(sSteals), sStealsSimpleFormat, arriPlyRoundPassStats[client].iPlySteals);
+		Format(sSplashes, sizeof(sSplashes), sSplashesSimpleFormat, arriPlyRoundPassStats[client].iPlySplashSaves);
 	}
 	else
 	{
@@ -338,7 +343,8 @@ static void
 		Format(sSaves, sizeof(sSaves), sSavesLongFormat, arriPlyRoundPassStats[client].iPlySaves);
 		Format(sIntercepts, sizeof(sIntercepts), sInterceptsLongFormat, arriPlyRoundPassStats[client].iPlyIntercepts);
 		Format(sSteals, sizeof(sSteals), sStealsLongFormat, arriPlyRoundPassStats[client].iPlySteals);
+		Format(sSplashes, sizeof(sSplashes), sSplashesLongFormat, arriPlyRoundPassStats[client].iPlySplashSaves);
 	}
 
-	Format(buf, maxLength, "%s,%s,%s,%s,%s", sGoals, sAssists, sSaves, sIntercepts, sSteals);
+	Format(buf, maxLength, "%s,%s,%s,%s,%s,%s", sGoals, sAssists, sSaves, sIntercepts, sSteals, sSplashes);
 }
