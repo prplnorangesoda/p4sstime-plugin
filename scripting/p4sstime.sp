@@ -327,49 +327,46 @@ Action PasstimeBallTookDamage(int victim, int& attacker, int& inflictor, float& 
 	VerboseLog("HEYSPEAKERSLOOKHERE: attacker '%s', attacker team: '%s'", playerName, TFTeamToString(playerTeam));
 	VerboseLog("HEYSPEAKERSLOOKHERE: ballteam '%s'", TFTeamToString(ballTeam));
 	// so incredibly ugly
-	if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_pipe") || StrEqual(classname, "tf_projectile_healing_bolt"))
+	VerboseLog("playerWhoSplashed: %d, playerTeam: %s, ballTeam: %s", attacker, TFTeamToString(playerTeam), TFTeamToString(ballTeam));
+	switch (playerTeam)
 	{
-		VerboseLog("classname matched a valid projectile, checking for splash");
-		VerboseLog("playerWhoSplashed: %d, playerTeam: %s, ballTeam: %s", attacker, TFTeamToString(playerTeam), TFTeamToString(ballTeam));
-		switch (playerTeam)
+		case TFTeam_Blue:
 		{
-			case TFTeam_Blue:
+			VerboseLog("player team is BLU, checking if in blu goal and if ball is red.");
+			if (EntInBluGoalZone(eiJack) && ballTeam == TFTeam_Red)
 			{
-				VerboseLog("player team is BLU, checking if in blu goal and if ball is red.");
-				if (EntInBluGoalZone(eiJack) && ballTeam == TFTeam_Red)
+				VerboseLog("all successful, this is a successful splash");
+				char playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+				GetClientName(attacker, playerName, sizeof(playerName));
+				FormatPlayerNameWithTeam(attacker, playerNameTeam);
+				if (bPrintStats.BoolValue)
 				{
-					VerboseLog("all successful, this is a successful splash");
-					char playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
-					GetClientName(attacker, playerName, sizeof(playerName));
-					FormatPlayerNameWithTeam(attacker, playerNameTeam);
-					if (bPrintStats.BoolValue)
-					{
-						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
-					}
-					PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
-					arriPlyRoundPassStats[attacker].iPlySplashSaves++;
+					PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
 				}
+				PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+				arriPlyRoundPassStats[attacker].iPlySplashSaves++;
 			}
-			case TFTeam_Red:
-			{
-				VerboseLog("player team is RED, checking if in red goal and if ball is blu.");
+		}
+		case TFTeam_Red:
+		{
+			VerboseLog("player team is RED, checking if in red goal and if ball is blu.");
 
-				if (EntInRedGoalZone(eiJack) && ballTeam == TFTeam_Blue)
+			if (EntInRedGoalZone(eiJack) && ballTeam == TFTeam_Blue)
+			{
+				VerboseLog("all successful, this is a successful splash");
+				char playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
+				GetClientName(attacker, playerName, sizeof(playerName));
+				FormatPlayerNameWithTeam(attacker, playerNameTeam);
+				if (bPrintStats.BoolValue)
 				{
-					VerboseLog("all successful, this is a successful splash");
-					char playerNameTeam[MAX_TEAMFORMAT_NAME_LENGTH];
-					GetClientName(attacker, playerName, sizeof(playerName));
-					FormatPlayerNameWithTeam(attacker, playerNameTeam);
-					if (bPrintStats.BoolValue)
-					{
-						PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
-					}
-					PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
-					arriPlyRoundPassStats[attacker].iPlySplashSaves++;
+					PrintToAllClientsChat("\x0700ffff[PASS] %s\x075bd4b3 splashed the ball to save!", playerNameTeam);
 				}
+				PrintToSTV("[PASS-TV] %s splashed the ball to save it. Tick: %d", playerName, STVTickCount());
+				arriPlyRoundPassStats[attacker].iPlySplashSaves++;
 			}
 		}
 	}
+
 	return Plugin_Continue;
 }
 
