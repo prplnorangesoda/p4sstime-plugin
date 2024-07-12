@@ -6,7 +6,7 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION					"2.5.0-rc1"
+#define VERSION					"2.5.0"
 
 #define GOALSCOLOR			"\x073BC43B"
 #define ASSISTSCOLOR		"\x073bc48f"
@@ -150,7 +150,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_pt_jackpickup_sound", Command_PasstimeJackPickupSound);
 	RegConsoleCmd("sm_pt_simplechatprint", Command_PasstimeSimpleChatPrint);
 	RegConsoleCmd("sm_pt_togglechatprint", Command_PasstimeToggleChatPrint);
-	RegAdminCmd("sm_ptsnapshot", Command_GamestateSnapshot, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_ptsnapshot", Command_GamestateSnapshot, ADMFLAG_GENERIC, "Take a snapshot of the plugin's current variable values.");
 	RegAdminCmd("sm_ptspawnball", Command_PasstimeSpawnBall, ADMFLAG_CONFIG, "Spawn the ball forcefully, by game starting and tournament restarting.");
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -183,7 +183,7 @@ public void OnPluginStart()
 	bPracticeMode							 = CreateConVar("sm_pt_practice", "0", "If 1, enables practice mode. When the round timer reaches 5 minutes, add 5 minutes to the timer.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	bWinstratKills						 = CreateConVar("sm_pt_winstrat_kills", "0", "If 1, kills winstratters and prints \"tried to winstrat\" in chat.", FCVAR_NOTIFY);
 	bVerboseLogs							 = CreateConVar("sm_pt_logs_verbose", "0", "If 1, prints additional information to logs.");
-	bMedicArrowsNeutralizeBall = CreateConVar("sm_pt_medic_can_splash", "0", "If 1, allows medic crossbow arrows to neutralize the ball.", FCVAR_NOTIFY);
+	bMedicArrowsNeutralizeBall = CreateConVar("sm_pt_medic_can_splash", "1", "If 1, allows medic crossbow arrows to neutralize the ball.", FCVAR_NOTIFY);
 	// trikzEnable	 = CreateConVar("sm_pt_trikz", "0", "Set 'trikz' mode. 1 adds friendly knockback for airshots, 2 adds friendly knockback for splash damage, 3 adds friendly knockback for everywhere", FCVAR_NOTIFY, true, 0.0, true, 3.0);
 	// trikzProjCollide = CreateConVar("sm_pt_trikz_projcollide", "2", "Manually set team projectile collision behavior when trikz is on. 2 always collides, 1 will cause your projectiles to phase through if you are too close (default game behavior), 0 will cause them to never collide.", 0, true, 0.0, true, 2.0);
 	// trikzProjDev = CreateConVar("sm_pt_trikz_projcollide_dev", "0", "DONOTUSE; This command is used solely by the plugin to change values. Changing this manually may cause issues.", FCVAR_HIDDEN, true, 0.0, true, 2.0);
@@ -272,7 +272,7 @@ public void OnGameFrame()
 			float distFromBluGoal = GetVectorDistance(ballPos, fBluGoalPos);
 			float distFromRedGoal = GetVectorDistance(ballPos, fRedGoalPos);
 			VerboseLog("Loose ball distance from goals: \"blu\" \"%.2f\" \"red\" \"%.2f\"", distFromBluGoal, distFromRedGoal);
-			if (bPrintStats.BoolValue)
+			if (bPrintStats.BoolValue && bFunStats.BoolValue)
 			{
 				if (distFromBluGoal <= 120)
 				{
