@@ -22,7 +22,8 @@ static const char sInterceptsSimpleFormat[] = "\x07ff00ff INT %d";
 static const char sStealsSimpleFormat[]			= "\x07ff8000 STL %d";
 static const char sSplashesSimpleFormat[]		= "\x075bd4b3 SPL %d";
 
-Action						Command_PasstimeSimpleChatPrint(int client, int args)
+Action
+	Command_PasstimeSimpleChatPrint(int client, int args)
 {
 	int value = 0;
 	if (GetCmdArgIntEx(1, value))
@@ -157,31 +158,72 @@ Action Timer_DisplayStats(Handle timer)
 			bluAmount++;
 		}
 	}
+	// thanks rose! -lucy
+	char arrStrRedTeamStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
+	char arrStrBluTeamStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
+	char arrStrRedSimpleStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
+	char arrStrBluSimpleStats[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH];
+
+	char arrStrConsoleStatsRed[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH];
+	char arrStrConsoleStatsBlu[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH];
+
+	GetTeamStatsArrStr(arrStrRedTeamStats, redTeam, redAmount);
+	GetTeamStatsArrStr(arrStrBluTeamStats, bluTeam, bluAmount);
+
+	GetTeamStatsArrStr(arrStrRedSimpleStats, redTeam, redAmount, true);
+	GetTeamStatsArrStr(arrStrBluSimpleStats, bluTeam, bluAmount, true);
+
+	GetConsoleStatsArrStr(arrStrConsoleStatsRed, redTeam, redAmount, RED);
+	GetConsoleStatsArrStr(arrStrConsoleStatsBlu, bluTeam, bluAmount, BLU);
+
 	for (int x = 1; x < MaxClients + 1; x++)
 	{
-		if (!IsValidClient(x, false)) continue;
+		if (!IsValidClient(x)) continue;
+		if (arrbJackAcqSettings[x].bPlyDontPrintChatSetting) continue;
 
-		// if on red team, print red team's stats last
-		// so it shows up most recently in chat
-		if (IsClientSourceTV(x))
+		LogToGame("Printing for client: %d", x);
+
+		bool isStv							 = IsClientSourceTV(x);
+		bool shouldPrintBluFirst = (TF2_GetClientTeam(x) == TFTeam_Red);
+
+		// smelly!
+		if (arrbJackAcqSettings[x].bPlySimpleChatPrintSetting)
 		{
-			PrintAllTeamStats(x, redTeam, redAmount, RED);
-			PrintAllTeamStats(x, bluTeam, bluAmount, BLU);
-			PrintToChat(x, "\x0700ffff[PASS] \x074EA6C1BLU \x073BC43Bpossession: %.2f%%, \x07C43F3BRED \x073BC43Bpossession: %.2f%%", bluBallPossessionPercent, redBallPossessionPercent);
+			if (shouldPrintBluFirst)
+			{
+				PrintMultiline(x, arrStrBluSimpleStats, sizeof(arrStrBluSimpleStats));
+				PrintMultiline(x, arrStrRedSimpleStats, sizeof(arrStrRedSimpleStats));
+			}
+			else
+			{
+				PrintMultiline(x, arrStrRedSimpleStats, sizeof(arrStrRedSimpleStats));
+				PrintMultiline(x, arrStrBluSimpleStats, sizeof(arrStrBluSimpleStats));
+			}
+		}
+		else
+		{
+			if (shouldPrintBluFirst)
+			{
+				PrintMultiline(x, arrStrBluTeamStats, sizeof(arrStrBluTeamStats));
+				PrintMultiline(x, arrStrRedTeamStats, sizeof(arrStrRedTeamStats));
+			}
+			else
+			{
+				PrintMultiline(x, arrStrRedTeamStats, sizeof(arrStrRedTeamStats));
+				PrintMultiline(x, arrStrBluTeamStats, sizeof(arrStrBluTeamStats));
+			}
+		}
+
+		PrintToChat(x, "\x0700ffff[PASS] \x07C43F3BRED \x073BC43Bpossession: %.2f%%, \x074EA6C1BLU \x073BC43Bpossession: %.2f%%", redBallPossessionPercent, bluBallPossessionPercent);
+		if (isStv)
+		{
 			PrintToChat(x, "[PASS-TV] BLU possession time in ticks: %d", iRedBallTime);
 			PrintToChat(x, "[PASS-TV] RED possession time in ticks: %d", iBluBallTime);
 		}
-		else if (TF2_GetClientTeam(x) == TFTeam_Red)
+		else
 		{
-			PrintAllTeamStats(x, bluTeam, bluAmount, BLU);
-			PrintAllTeamStats(x, redTeam, redAmount, RED);
-			PrintToChat(x, "\x0700ffff[PASS] \x07C43F3BRED \x073BC43Bpossession: %.2f%%, \x074EA6C1BLU \x073BC43Bpossession: %.2f%%", redBallPossessionPercent, bluBallPossessionPercent);
-		}
-		// otherwise, print blue last
-		else if (TF2_GetClientTeam(x) == TFTeam_Blue || TF2_GetClientTeam(x) == TFTeam_Spectator) {
-			PrintAllTeamStats(x, redTeam, redAmount, RED);
-			PrintAllTeamStats(x, bluTeam, bluAmount, BLU);
-			PrintToChat(x, "\x0700ffff[PASS] \x074EA6C1BLU \x073BC43Bpossession: %.2f%%, \x07C43F3BRED \x073BC43Bpossession: %.2f%%", bluBallPossessionPercent, redBallPossessionPercent);
+			Print3DMultilineToConsole(x, arrStrConsoleStatsBlu, sizeof(arrStrConsoleStatsBlu), sizeof(arrStrConsoleStatsBlu[]));
+			Print3DMultilineToConsole(x, arrStrConsoleStatsRed, sizeof(arrStrConsoleStatsRed), sizeof(arrStrConsoleStatsRed[]));
 		}
 	}
 
@@ -191,10 +233,92 @@ Action Timer_DisplayStats(Handle timer)
 	return Plugin_Stop;
 }
 
+void GetTeamStatsArrStr(char buf[MAXPLAYERS + 1][MAX_MESSAGE_LENGTH], int[] teamMembers, int len, bool isSimple = false)
+{
+	for (int i = 0; i < len; i++)
+	{
+		char playerNameTeamFormatted[MAX_NAME_LENGTH + 7];
+		FormatPlayerNameWithTeam(teamMembers[i], playerNameTeamFormatted);
+		char stats[MAX_MESSAGE_LENGTH];
+		AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], isSimple);
+		char out[MAX_MESSAGE_LENGTH];
+		Format(out, sizeof(out), "\x0700ffff[PASS] %s:%s", playerNameTeamFormatted, stats);
+		buf[i] = out;
+	}
+}
+
+// awkward indentation as "%d" takes up two spaces but it ends up being effectively single digit
+static const char consoleFormatBlank[]		= "//                                                                        //";
+static const char consoleFormatTitleBlu[] = "//   BLU | %s";
+static const char consoleFormatTitleRed[] = "//   RED | %s";
+static const char consoleFormat1[]				= "//   %d goals, %d assists, %d saves, %d intercepts, %d steals                  //";
+static const char consoleFormat2[]				= "//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs                   //";
+static const char consoleFormat3[]				= "//   %d first grabs, %d catapults, %d blocks, %d steal2saves                  //";
+static const char consoleFormat4[]        = "//   %d splash saves                                                       //";
+
+// a player takes up 7 lines
+// this is a sad amount of arguments
+// three dimensional array structure:
+// dimension 1: a player
+// dimension 2: their stat strings
+
+void							GetConsoleStatsArrStr(char buf[MAXPLAYERS + 1][7][MAX_MESSAGE_LENGTH], int[] teamMembers, int teamAmount, bool isBlu)
+{
+	for (int i = 0; i < teamAmount; i++)
+	{
+		char							playerName[MAX_NAME_LENGTH];
+		int								player = teamMembers[i];
+		enuiPlyRoundStats stats;
+		stats = arriPlyRoundPassStats[player];
+		GetClientName(player, playerName, sizeof(playerName));
+		Format(buf[i][0], MAX_MESSAGE_LENGTH, consoleFormatBlank);
+		if (isBlu)
+		{
+			Format(buf[i][1], MAX_MESSAGE_LENGTH, consoleFormatTitleBlu, playerName);
+		}
+		else
+		{
+			Format(buf[i][1], MAX_MESSAGE_LENGTH, consoleFormatTitleRed, playerName);
+		}
+		Format(buf[i][2], MAX_MESSAGE_LENGTH, consoleFormat1, stats.iPlyScores, stats.iPlyAssists, stats.iPlySaves, stats.iPlyIntercepts, stats.iPlySteals);
+		Format(buf[i][3], MAX_MESSAGE_LENGTH, consoleFormat2, stats.iPlyPanaceas, stats.iPlyWinStrats, stats.iPlyDeathbombs, stats.iPlyHandoffs);
+		Format(buf[i][4], MAX_MESSAGE_LENGTH, consoleFormat3, stats.iPlyFirstGrabs, stats.iPlyCatapults, stats.iPlyBlocks, stats.iPlySteal2Saves);
+    Format(buf[i][5], MAX_MESSAGE_LENGTH, consoleFormat4, stats.iPlySplashSaves);
+		Format(buf[i][6], MAX_MESSAGE_LENGTH, consoleFormatBlank);
+	}
+}
+
+void PrintMultiline(int client, char[][] lines, int len)
+{
+	for (int i = 0; i < len; i++)
+	{
+		if (!StrEqual(lines[i], ""))
+		{
+			PrintToChat(client, lines[i]);
+		}
+	}
+	return;
+}
+
+void Print3DMultilineToConsole(int client, char[][][] lines, int length, int height)
+{
+	for (int i = 0; i < length; i++)
+	{
+		for (int j = 0; j < height; j++)
+		{
+			if (!StrEqual(lines[i][j], ""))
+			{
+				PrintToConsole(client, lines[i][j]);
+			}
+		}
+	}
+}
+
 /**
  * @param simplified whether to use the simplified 3 letter abbreviations (true) or long names (false)
  */
-static void AssembleColoredStatsString(char[] buf, int maxLength, int client, bool simplified = false)
+static void
+	AssembleColoredStatsString(char[] buf, int maxLength, int client, bool simplified = false)
 {
 	VerboseLog("Assembling stats for client: %d", client);
 	char sGoals[48];
@@ -223,47 +347,4 @@ static void AssembleColoredStatsString(char[] buf, int maxLength, int client, bo
 	}
 
 	Format(buf, maxLength, "%s,%s,%s,%s,%s,%s", sGoals, sAssists, sSaves, sIntercepts, sSteals, sSplashes);
-}
-
-static void PrintAllTeamStats(int client, int[] teamMembers, int len, bool isBlu)
-{
-	// format names to blue
-	if (isBlu)
-	{
-		for (int i = 0; i < len; i++)
-		{
-			char playerName[MAX_NAME_LENGTH];
-			GetClientName(teamMembers[i], playerName, sizeof(playerName));
-			// if client requests print
-			if (!arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
-			{
-				char stats[MAX_MESSAGE_LENGTH];
-				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], arrbJackAcqSettings[client].bPlySimpleChatPrintSetting);
-				PrintToChat(client, "\x0700ffff[PASS]\x074EA6C1 %s:%s", playerName, stats);
-			}
-			PrintToConsole(client, "//                                                                    //\n//   BLU | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d defensive steals         //\n//   %d splashsaves                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves, arriPlyRoundPassStats[teamMembers[i]].iPlySplashSaves);	// have this be red so your team shows up first?
-		}
-	}
-	// format names to red
-	else
-	{
-		for (int i = 0; i < len; i++)
-		{
-			char playerName[MAX_NAME_LENGTH];
-			GetClientName(teamMembers[i], playerName, sizeof(playerName));
-			if (arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
-			{
-				char stats[MAX_MESSAGE_LENGTH];
-				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i], true);
-				PrintToChat(client, "\x0700ffff[PASS]\x07C43F3B %s:%s", playerName, stats);
-			}
-			else if (!arrbJackAcqSettings[client].bPlySimpleChatPrintSetting && !arrbJackAcqSettings[client].bPlyDontPrintChatSetting)
-			{
-				char stats[MAX_MESSAGE_LENGTH];
-				AssembleColoredStatsString(stats, sizeof(stats), teamMembers[i]);
-				PrintToChat(client, "\x0700ffff[PASS]\x07C43F3B %s:%s", playerName, stats);
-			}
-			PrintToConsole(client, "//                                                                    //\n//   RED | %s\n//   %d goals, %d assists, %d saves, %d intercepts, %d steals              //\n//   %d Panaceas, %d win strats, %d deathbombs, %d handoffs               //\n//   %d first grabs, %d catapults, %d blocks, %d defensive steals         //\n//   %d splashsaves                                                    //", playerName, arriPlyRoundPassStats[teamMembers[i]].iPlyScores, arriPlyRoundPassStats[teamMembers[i]].iPlyAssists, arriPlyRoundPassStats[teamMembers[i]].iPlySaves, arriPlyRoundPassStats[teamMembers[i]].iPlyIntercepts, arriPlyRoundPassStats[teamMembers[i]].iPlySteals, arriPlyRoundPassStats[teamMembers[i]].iPlyPanaceas, arriPlyRoundPassStats[teamMembers[i]].iPlyWinStrats, arriPlyRoundPassStats[teamMembers[i]].iPlyDeathbombs, arriPlyRoundPassStats[teamMembers[i]].iPlyHandoffs, arriPlyRoundPassStats[teamMembers[i]].iPlyFirstGrabs, arriPlyRoundPassStats[teamMembers[i]].iPlyCatapults, arriPlyRoundPassStats[teamMembers[i]].iPlyBlocks, arriPlyRoundPassStats[teamMembers[i]].iPlySteal2Saves, arriPlyRoundPassStats[teamMembers[i]].iPlySplashSaves);
-		}
-	}
 }
