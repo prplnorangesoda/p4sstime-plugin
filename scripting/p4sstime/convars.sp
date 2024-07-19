@@ -2,10 +2,10 @@
 
 Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(event.GetInt("userid"));
+	int client						= GetClientOfUserId(event.GetInt("userid"));
 	arrbPlyIsDead[client] = false;
 	RemoveShotty(client);
-	if(TF2_GetPlayerClass(client)==TFClass_DemoMan){QueryClientConVar(client, "m_filter", FilterCheck, false);}
+	if (TF2_GetPlayerClass(client) == TFClass_DemoMan) { QueryClientConVar(client, "m_filter", FilterCheck, false); }
 
 	return Plugin_Handled;
 }
@@ -15,28 +15,28 @@ Action OnChangeClass(int client, const char[] strCommand, int args)
 	// class limits; demo = 1, med = 1, soldier = 3
 	// essentially we just check every time someone changes class if the class change is possible. i dont like doing it this way but alternative is dhooks :vomit:
 	char sChosenClass[12];
-	bool demo = false;
-	bool med = false;
-	int solly = 0;
+	bool demo	 = false;
+	bool med	 = false;
+	int	 solly = 0;
 	GetCmdArg(1, sChosenClass, sizeof(sChosenClass));
-	TFClassType class = TF2_GetClass(sChosenClass);
+	TFClassType class	 = TF2_GetClass(sChosenClass);
 	TFTeam currentTeam = TF2_GetClientTeam(client);
-	for(int x = 1; x < MaxClients + 1; x++)
+	for (int x = 1; x < MaxClients + 1; x++)
 	{
-		if(!IsValidClient(x)) continue;
-		if(TF2_GetClientTeam(x) == currentTeam)
+		if (!IsValidClient(x)) continue;
+		if (TF2_GetClientTeam(x) == currentTeam)
 		{
 			TFClassType classcheck = TF2_GetPlayerClass(x);
-			if(classcheck == TFClass_Soldier) solly++;
-			else if(classcheck == TFClass_DemoMan) demo = true;
-			else if(classcheck == TFClass_Medic) med = true;
+			if (classcheck == TFClass_Soldier) solly++;
+			else if (classcheck == TFClass_DemoMan) demo = true;
+			else if (classcheck == TFClass_Medic) med = true;
 		}
 	}
-	if(arrbPlyIsDead[client] == true && bSwitchDuringRespawn.BoolValue)
+	if (arrbPlyIsDead[client] == true && bSwitchDuringRespawn.BoolValue)
 	{
-		if(class == TFClass_Medic && med) return Plugin_Handled;
-		else if(class == TFClass_DemoMan && demo) return Plugin_Handled;
-		else if(class == TFClass_Soldier && solly > 2) return Plugin_Handled;
+		if (class == TFClass_Medic && med) return Plugin_Handled;
+		else if (class == TFClass_DemoMan && demo) return Plugin_Handled;
+		else if (class == TFClass_Soldier && solly > 2) return Plugin_Handled;
 		if (class != TFClass_Unknown && class != TFClass_Pyro && class != TFClass_Heavy && class != TFClass_Engineer && class != TFClass_Spy && class != TFClass_Sniper && class != TFClass_Scout)
 		{
 			SetEntProp(client, Prop_Send, "m_iDesiredPlayerClass", class);
@@ -53,7 +53,7 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 	{
 		ClientCommand(client, "r_screenoverlay \"\"");
 	}
-	if (condition == TFCond_Charging && TF2_GetPlayerClass(client)==TFClass_DemoMan)
+	if (condition == TFCond_Charging && TF2_GetPlayerClass(client) == TFClass_DemoMan)
 	{
 		CreateTimer(0.1, MultiCheck, client);
 	}
@@ -77,13 +77,13 @@ Action Command_PasstimeSuicide(int client, int args)
 Action Command_PasstimeCoundownCaption(int client, int args)
 {
 	int value = 0;
-	if(GetCmdArgIntEx(1, value))
+	if (GetCmdArgIntEx(1, value))
 	{
-		if(value == 1)
+		if (value == 1)
 			arrbJackAcqSettings[client].bPlyCoundownCaptionSetting = true;
-		else if(value == 0)
+		else if (value == 0)
 			arrbJackAcqSettings[client].bPlyCoundownCaptionSetting = false;
-		if(value == 1 || value == 0)
+		if (value == 1 || value == 0)
 		{
 			SetCookieBool(client, cookieCountdownCaption, arrbJackAcqSettings[client].bPlyCoundownCaptionSetting);
 			ReplyToCommand(client, "[PASS] JACK spawn timer captions: %s", arrbJackAcqSettings[client].bPlyCoundownCaptionSetting ? "ON" : "OFF");
@@ -97,13 +97,13 @@ Action Command_PasstimeCoundownCaption(int client, int args)
 Action Command_PasstimeJackPickupHud(int client, int args)
 {
 	int value = 0;
-	if(GetCmdArgIntEx(1, value))
+	if (GetCmdArgIntEx(1, value))
 	{
-		if(value == 1)
+		if (value == 1)
 			arrbJackAcqSettings[client].bPlyHudTextSetting = true;
-		else if(value == 0)
+		else if (value == 0)
 			arrbJackAcqSettings[client].bPlyHudTextSetting = false;
-		if(value == 1 || value == 0)
+		if (value == 1 || value == 0)
 		{
 			SetCookieBool(client, cookieJACKPickupHud, arrbJackAcqSettings[client].bPlyHudTextSetting);
 			ReplyToCommand(client, "[PASS] JACK pickup HUD text: %s", arrbJackAcqSettings[client].bPlyHudTextSetting ? "ON" : "OFF");
@@ -117,13 +117,13 @@ Action Command_PasstimeJackPickupHud(int client, int args)
 Action Command_PasstimeJackPickupChat(int client, int args)
 {
 	int value = 0;
-	if(GetCmdArgIntEx(1, value))
+	if (GetCmdArgIntEx(1, value))
 	{
-		if(value == 1)
+		if (value == 1)
 			arrbJackAcqSettings[client].bPlyChatPrintSetting = true;
-		if(value == 0)
+		if (value == 0)
 			arrbJackAcqSettings[client].bPlyChatPrintSetting = false;
-		if(value == 1 || value == 0)
+		if (value == 1 || value == 0)
 		{
 			SetCookieBool(client, cookieJACKPickupChat, arrbJackAcqSettings[client].bPlyChatPrintSetting);
 			ReplyToCommand(client, "[PASS] JACK pickup chat text: %s", arrbJackAcqSettings[client].bPlyChatPrintSetting ? "ON" : "OFF");
@@ -137,13 +137,13 @@ Action Command_PasstimeJackPickupChat(int client, int args)
 Action Command_PasstimeJackPickupSound(int client, int args)
 {
 	int value = 0;
-	if(GetCmdArgIntEx(1, value))
+	if (GetCmdArgIntEx(1, value))
 	{
-		if(value == 1)
+		if (value == 1)
 			arrbJackAcqSettings[client].bPlySoundSetting = true;
-		if(value == 0)
+		if (value == 0)
 			arrbJackAcqSettings[client].bPlySoundSetting = false;
-		if(value == 1 || value == 0)
+		if (value == 1 || value == 0)
 		{
 			SetCookieBool(client, cookieJACKPickupSound, arrbJackAcqSettings[client].bPlySoundSetting);
 			ReplyToCommand(client, "[PASS] JACK pickup sound: %s", arrbJackAcqSettings[client].bPlySoundSetting ? "ON" : "OFF");
