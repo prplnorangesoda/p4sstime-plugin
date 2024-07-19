@@ -6,7 +6,7 @@
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION					"2.5.0"
+#define VERSION					"2.5.1"
 
 #define GOALSCOLOR			"\x073BC43B"
 #define ASSISTSCOLOR		"\x073bc48f"
