@@ -1,12 +1,13 @@
 #include <tf2_stocks>
 #include <sdkhooks>
+#include <vector>
 //#include <dhooks>
 #include <clientprefs>
 
 #pragma semicolon 1	 // required for logs.tf
 #pragma newdecls required
 
-#define VERSION					"2.5.1"
+#define VERSION					"next"
 
 #define GOALSCOLOR			"\x073BC43B"
 #define ASSISTSCOLOR		"\x073bc48f"
@@ -313,6 +314,16 @@ public void OnEntityCreated(int eIndex, const char[] eClassname)
 		}
 	}
 }
+Action DebugEntityTookDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	char victimName[64], inflictorName[64];
+	GetEntityClassname(inflictor, inflictorName, sizeof(inflictorName));
+	GetEntityClassname(victim, victimName, sizeof(victimName));
+
+	LogToGame("Entity took damage: victim '%d' victim classname '%s' attacker '%d' inflictor '%d' inflictor classname '%s damage '%.1f' damagetype '%d' weapon '%d' damageForce '%.1f' '%.1f' '%.1f' damagePosition '%.1f' '%.1f' '%.1f' damagecustom '%d'",
+						victim, victimName, attacker, inflictor, inflictorName, damage, damagetype, weapon, damageForce[0], damageForce[1], damageForce[2], damagePosition[0], damagePosition[1], damagePosition[2], damagecustom);
+	return Plugin_Continue;
+}
 
 Action PasstimeBallTookDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
@@ -377,7 +388,17 @@ void MedicArrowTouchedSomething(int arrow, int other)
 	int MedicAttacker = EntRefToEntIndex(GetEntPropEnt(arrow, Prop_Data, "m_hOwnerEntity"));
 	if (StrEqual(classname, "passtime_ball"))
 	{
-		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 50.0, -1, -1, NULL_VECTOR, NULL_VECTOR, false);
+		char MedicAttackerName[50];
+		GetClientName(MedicAttacker, MedicAttackerName, sizeof(MedicAttackerName));
+		float jackPosition[3], arrowPosition[3], damageForce[3];
+		GetEntPropVector(other, Prop_Send, "m_vecOrigin", jackPosition);
+		GetEntPropVector(arrow, Prop_Send, "m_vecOrigin", arrowPosition);
+		LogToGame("JackPosition: '%.1f' '%.1f' '%.1f' arrowPosition '%.1f' '%.1f' '%.1f'", jackPosition[0], jackPosition[1], jackPosition[2], arrowPosition[0], arrowPosition[1], arrowPosition[2]);
+		MakeVectorFromPoints(jackPosition, arrowPosition, damageForce);
+		ScaleVector(damageForce, -10.0);
+		LogToGame("DamageForce: '%.1f' '%.1f' '%.1f'", damageForce[0], damageForce[1], damageForce[2]);
+		SDKHooks_TakeDamage(other, arrow, MedicAttacker, 10.0, 0, -1, damageForce, arrowPosition, false);
+		PrintToAllClientsChat("[PASS] %s direct impacted the ball with a crossbow shot!", MedicAttackerName);
 	}
 	LogMessage("medic arrow from %d touched %s index %d", MedicAttacker, classname, other);
 }
@@ -1203,5 +1224,6 @@ void SetJack(int eIndex)
 	{
 		LogError("Could not hook passtime_ball. Splash detection will not work.");
 	}
+	SDKHook(eIndex, SDKHook_OnTakeDamage, DebugEntityTookDamage);
 	eiJack = eIndex;
 }
