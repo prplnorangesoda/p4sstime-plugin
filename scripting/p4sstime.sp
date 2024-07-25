@@ -259,6 +259,11 @@ public void OnMapStart()	 // getgoallocations
 	}
 }
 
+public void OnMapEnd()
+{
+	eiJack = 0;
+}
+
 public void OnGameFrame()
 {
 	if (bBallLoose)
