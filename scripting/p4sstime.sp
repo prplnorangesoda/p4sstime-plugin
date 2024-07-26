@@ -95,6 +95,7 @@ int									iBluBallTime;
 Menu								mPassMenu;
 bool								bWaitingForBallSpawnToRestart;
 bool								bHalloweenMode;
+bool								bGameOngoing = false;
 bool								bBallLoose;					// Is the ball currently loose (is the passtime_ball entity on the map)?
 TFTeam							eLastTickBallTeam;	// in effect, this is "last thrown ball team"
 bool								arrbPlyIsDead[MAXPLAYERS + 1];
@@ -169,6 +170,7 @@ public void OnPluginStart()
 	HookEvent("sticky_jump_landed", Event_SJLand);
 	HookEvent("teamplay_pre_round_time_left", Event_PregameCountdown);
 	HookEvent("teamplay_broadcast_audio", Event_MidgameCountdown);
+	HookEvent("teamplay_game_over", Event_GameEnd);
 	HookEvent("teamplay_round_win", Event_TeamWin);
 	HookEvent("stats_resetround", Event_RoundReset);
 	HookEntityOutput("trigger_catapult", "OnCatapulted", Hook_OnCatapult);
@@ -209,6 +211,7 @@ public void OnPluginStart()
 	char sMapNameBuffer[256];
 	GetCurrentMap(sMapNameBuffer, 256);
 	VerboseLog("Current map buffer -> %s", sMapNameBuffer);
+	bGameOngoing = false;
 	// check if stadium is the current map in order to set the height lower
 	// see OnMapInit
 	// this is necessary as OnMapInit is not called when the plugin is ran
@@ -221,7 +224,7 @@ public void OnPluginStart()
 	}
 
 	int jackIndex = FindEntityByClassname(-1, "passtime_ball");
-	if (jackIndex != -1) eiJack = jackIndex;
+	if (jackIndex != -1) SetJack(jackIndex);
 }
 
 //#include <p4sstime/trikz.sp>
@@ -234,6 +237,7 @@ public void OnPluginStart()
 #include "p4sstime/stats_print.sp"
 #include "p4sstime/f2stocks.sp"
 #include "p4sstime/spawnball.sp"
+#include "p4sstime/utilities.sp"
 
 public void OnMapInit(const char[] mapName)
 {
@@ -403,6 +407,15 @@ void MedicArrowTouchedSomething(int arrow, int other)
 	LogMessage("medic arrow from %d touched %s index %d", MedicAttacker, classname, other);
 }
 
+Action Event_GameEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	char reason[50];
+	GetEventString(event, "reason", reason, sizeof(reason));
+	LogToGame("Event_GameEnd fired.");
+	bGameOngoing = false;
+	return Plugin_Continue;
+}
+
 Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 0; i < MaxClients + 1; i++)
@@ -415,8 +428,13 @@ Action Event_RoundReset(Event event, const char[] name, bool dontBroadcast)
 		SetConVarInt(bPracticeMode, 0);
 		PrintToChatAll("\x0700ffff[PASS] Game started; practice mode disabled.");
 	}
-	bHalloweenMode	= false;
-	iRoundResetTick = GetGameTickCount();
+	bHalloweenMode = false;
+	if (bGameOngoing == false)
+	{
+		iRoundResetTick = GetGameTickCount();
+		bGameOngoing		= true;
+		LogMessage("Game started, new roundResetTick: %d", iRoundResetTick);
+	}
 	return Plugin_Handled;
 }
 
@@ -1193,33 +1211,9 @@ stock void VerboseLog(const char[] format, any...)
 	}
 }
 
-stock char[] TFTeamToString(TFTeam input)
-{
-	char string[4];
-	switch (input)
-	{
-		case TFTeam_Blue:
-		{
-			string = "BLU";
-		}
-		case TFTeam_Red:
-		{
-			string = "RED";
-		}
-		case TFTeam_Spectator:
-		{
-			string = "SPC";
-		}
-		case TFTeam_Unassigned:
-		{
-			string = "UNA";
-		}
-	}
-	return string;
-}
-
 void SetJack(int eIndex)
 {
+	if (!IsValidEntity(eIndex)) return;
 	if (!SDKHookEx(eIndex, SDKHook_OnTakeDamage, PasstimeBallTookDamage))
 	{
 		LogError("Could not hook passtime_ball. Splash detection will not work.");
