@@ -3,6 +3,8 @@
 !.gitignore
 !.vscode/
 !.vscode/*
+!scripting/include/
+!scripting/include/updater.inc
 !scripting/compile.sh
 !scripting
 !scripting/p4sstime/

@@ -1,3 +1,7 @@
+#undef REQUIRE_PLUGIN
+#include "include/updater.inc"
+#define REQUIRE_PLUGIN
+
 #include <tf2_stocks>
 #include <sdkhooks>
 //#include <dhooks>
@@ -221,6 +225,14 @@ public void OnPluginStart()
 
 	int jackIndex = FindEntityByClassname(-1, "passtime_ball");
 	if (jackIndex != -1) eiJack = jackIndex;
+}
+
+public
+void OnLibraryAdded(const char[] name) {
+    if (StrEqual(name, "updater")) {
+        Updater_AddPlugin(
+            "https://raw.githubusercontent.com/prplnorangesoda/p4sstime-plugin/updater/updatefile.txt");
+    }
 }
 
 //#include <p4sstime/trikz.sp>
