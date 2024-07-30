@@ -1,0 +1,27 @@
+"Updater" {
+	"Information" {
+		"Version" {
+			"Latest" "2.5.1"
+		}
+
+		"Notes" "Patch notes: https://github.com/prplnorangesoda/p4sstime-plugin/releases"
+	}
+
+	"Files" {
+		"Plugin" "Path_SM/plugins/p4sstime.smx"
+		"Plugin" "Path_SM/plugins/disabled/p4sstime.smx"
+
+		"Source" "Path_SM/scripting/p4sstime.sp"
+		"Source" "Path_SM/scripting/p4sstime/anticheat.sp"
+		"Source" "Path_SM/scripting/p4sstime/convars.sp"
+		"Source" "Path_SM/scripting/p4sstime/f2stocks.sp"
+		"Source" "Path_SM/scripting/p4sstime/logs.sp"
+		"Source" "Path_SM/scripting/p4sstime/pass_menu.sp"
+		"Source" "Path_SM/scripting/p4sstime/practice.sp"
+		"Source" "Path_SM/scripting/p4sstime/snapshot.sp"
+		"Source" "Path_SM/scripting/p4sstime/spawnball.sp"
+		"Source" "Path_SM/scripting/p4sstime/stats_print.sp"
+		"Source" "Path_SM/scripting/p4sstime/trikz.sp"
+		"Source" "Path_SM/scripting/p4sstime/utilities.sp"
+	}
+}
