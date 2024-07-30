@@ -225,6 +225,10 @@ public void OnPluginStart()
 
 	int jackIndex = FindEntityByClassname(-1, "passtime_ball");
 	if (jackIndex != -1) eiJack = jackIndex;
+
+	if (LibraryExists("updater")) {
+		OnLibraryAdded("Updater");
+	}
 }
 
 public
